@@ -1,6 +1,6 @@
 # Workflows
 
-**Last Updated:** 2026-01-20
+**Last Updated:** 2026-01-27
 
 Workflows are state-machine based automations with human-in-the-loop support. Use them to model multi-step business processes that may require approvals, user input, or external integrations.
 
@@ -144,7 +144,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows/approval_workflow/inst
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "namespace": "user_123",
+    "user_ref": "user_123",
     "input": {
       "id": "req_456",
       "amount": 5000,
@@ -177,7 +177,7 @@ curl https://core.interactor.com/api/v1/workflows/instances \
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `namespace` | string | Filter by namespace |
+| `user_ref` | string | Filter by user reference |
 | `workflow_name` | string | Filter by workflow |
 | `status` | string | `running`, `halted`, `completed`, `failed`, `cancelled` |
 
@@ -470,7 +470,7 @@ See [Webhooks and Streaming](06-webhooks-and-streaming.md) for setup.
 3. **Validate early** - Use `/validate` endpoint during development
 4. **Version carefully** - Publish new versions rather than modifying existing ones
 5. **Handle all paths** - Ensure every state has a valid transition or is terminal
-6. **Use namespaces** - Isolate workflow instances per user
+6. **Use user_ref** - Isolate workflow instances per user
 
 ---
 

@@ -1,6 +1,6 @@
 # Webhooks and Streaming
 
-**Last Updated:** 2026-01-20
+**Last Updated:** 2026-01-27
 
 Receive real-time updates from Interactor via webhooks (push) or Server-Sent Events (pull).
 
@@ -21,21 +21,27 @@ curl https://core.interactor.com/api/v1/webhooks/event-types \
 ```json
 {
   "data": {
-    "event_types": [
+    "credential": [
       "credential.created",
       "credential.refreshed",
       "credential.expired",
-      "credential.revoked",
+      "credential.revoked"
+    ],
+    "workflow": [
       "workflow.instance.created",
       "workflow.instance.completed",
       "workflow.instance.failed",
-      "workflow.instance.halted",
+      "workflow.instance.halted"
+    ],
+    "agent": [
       "agent.room.message",
       "agent.room.closed"
     ]
   }
 }
 ```
+
+Event types are grouped by category (the prefix before the first dot).
 
 ### Create a Webhook
 
@@ -45,7 +51,7 @@ curl -X POST https://core.interactor.com/api/v1/webhooks \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://yourapp.com/webhooks/interactor",
-    "events": ["workflow.instance.completed", "agent.room.message"],
+    "event_types": ["workflow.instance.completed", "agent.room.message"],
     "enabled": true
   }'
 ```
@@ -57,7 +63,7 @@ curl -X POST https://core.interactor.com/api/v1/webhooks \
     "id": "wh_abc",
     "url": "https://yourapp.com/webhooks/interactor",
     "secret": "whsec_xyz_SAVE_THIS",
-    "events": ["workflow.instance.completed", "agent.room.message"],
+    "event_types": ["workflow.instance.completed", "agent.room.message"],
     "enabled": true
   }
 }
@@ -86,7 +92,7 @@ curl -X PUT https://core.interactor.com/api/v1/webhooks/wh_abc \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "events": ["credential.created", "credential.expired"],
+    "event_types": ["credential.created", "credential.expired"],
     "url": "https://yourapp.com/webhooks/v2/interactor"
   }'
 ```
@@ -155,7 +161,7 @@ All webhook events follow this structure:
 {
   "credential_id": "cred_abc",
   "service_id": "google_calendar",
-  "namespace": "user_123"
+  "user_ref": "user_123"
 }
 ```
 

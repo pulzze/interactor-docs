@@ -1,6 +1,6 @@
 # AI Agents
 
-**Last Updated:** 2026-01-22
+**Last Updated:** 2026-01-27
 
 AI Agents are LLM-powered assistants that can have conversations, use tools, and access your data sources to help your users accomplish tasks.
 
@@ -27,15 +27,14 @@ curl -X POST https://core.interactor.com/api/v1/agents/assistants \
   -H "Content-Type: application/json" \
   -d '{
     "name": "support_assistant",
-    "title": "Support Assistant",
     "description": "Helps users with support questions",
-    "model_config": {
-      "provider": "anthropic",
-      "model": "claude-sonnet-4-20250514",
+    "system_prompt": "You are a helpful support assistant. Be concise and friendly.",
+    "llm_provider": "anthropic",
+    "llm_model": "claude-sonnet-4-20250514",
+    "llm_config": {
       "temperature": 0.7
     },
-    "instructions": "You are a helpful support assistant. Be concise and friendly.",
-    "enabled_tools": ["search_knowledge_base", "create_ticket"]
+    "default_tools": ["search_knowledge_base", "create_ticket"]
   }'
 ```
 
@@ -45,7 +44,7 @@ curl -X POST https://core.interactor.com/api/v1/agents/assistants \
   "data": {
     "id": "asst_abc",
     "name": "support_assistant",
-    "title": "Support Assistant",
+    "description": "Helps users with support questions",
     "created_at": "2026-01-20T12:00:00Z"
   }
 }
@@ -53,16 +52,20 @@ curl -X POST https://core.interactor.com/api/v1/agents/assistants \
 
 ### Assistant Configuration Options
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Unique identifier (lowercase, underscores) |
-| `title` | string | Display name |
-| `description` | string | What the assistant does |
-| `model_config.provider` | string | `anthropic` or `openai` |
-| `model_config.model` | string | Model identifier |
-| `model_config.temperature` | number | Response randomness (0.0 - 1.0) |
-| `instructions` | string | System prompt defining behavior |
-| `enabled_tools` | array | Tool names the assistant can use |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Unique identifier (lowercase, underscores) |
+| `system_prompt` | string | Yes | System prompt defining behavior |
+| `description` | string | No | What the assistant does |
+| `llm_provider` | string | No | `anthropic` or `openai` (default: `openai`) |
+| `llm_model` | string | No | Model identifier |
+| `llm_config` | object | No | LLM settings (e.g., `{"temperature": 0.7}`) |
+| `default_tools` | array | No | Tool IDs the assistant can use |
+| `default_data_sources` | array | No | Data source IDs the assistant can query |
+| `max_tool_calls_per_turn` | integer | No | Limit tool calls per conversation turn |
+| `session_timeout_minutes` | integer | No | Auto-close rooms after inactivity |
+| `active` | boolean | No | Whether the assistant is enabled (default: `true`) |
+| `metadata` | object | No | Custom data to store with the assistant |
 
 ### List Assistants
 
@@ -85,8 +88,8 @@ curl -X PUT https://core.interactor.com/api/v1/agents/assistants/asst_abc \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "instructions": "Updated instructions...",
-    "model_config": {
+    "system_prompt": "Updated instructions...",
+    "llm_config": {
       "temperature": 0.5
     }
   }'
@@ -105,7 +108,7 @@ curl -X POST https://core.interactor.com/api/v1/agents/asst_abc/rooms \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "namespace": "user_123",
+    "user_ref": "user_123",
     "metadata": {
       "user_name": "John",
       "context": "billing_question"
@@ -136,7 +139,7 @@ curl https://core.interactor.com/api/v1/agents/rooms \
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `namespace` | string | Filter by namespace |
+| `user_ref` | string | Filter by user reference |
 | `assistant_id` | string | Filter by assistant |
 | `status` | string | `active` or `closed` |
 
@@ -196,7 +199,7 @@ curl https://core.interactor.com/api/v1/agents/rooms/room_xyz/messages \
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `limit` | integer | Max messages to return |
-| `before` | string | Message ID for pagination |
+| `offset` | integer | Number of messages to skip (for pagination) |
 
 ### Streaming Responses
 

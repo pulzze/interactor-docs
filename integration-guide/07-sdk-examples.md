@@ -1,6 +1,6 @@
 # SDK Examples
 
-**Last Updated:** 2026-01-20
+**Last Updated:** 2026-01-27
 
 Complete code examples for integrating with Interactor in TypeScript/Node.js and Python.
 
@@ -71,8 +71,8 @@ export class InteractorClient {
 
   // ============ Credentials ============
 
-  async listCredentials(namespace?: string) {
-    const params = namespace ? `?namespace=${namespace}` : '';
+  async listCredentials(userRef?: string) {
+    const params = userRef ? `?user_ref=${userRef}` : '';
     return this.request<any>('GET', `/credentials${params}`);
   }
 
@@ -87,11 +87,11 @@ export class InteractorClient {
     );
   }
 
-  async initiateOAuth(serviceId: string, namespace: string, redirectUri: string, scopes?: string[]) {
+  async initiateOAuth(serviceId: string, userRef: string, redirectUri: string, scopes?: string[]) {
     return this.request<{ flow_id: string; authorization_url: string }>(
       'POST',
       '/oauth/initiate',
-      { service_id: serviceId, namespace, redirect_uri: redirectUri, scopes }
+      { service_id: serviceId, user_ref: userRef, redirect_uri: redirectUri, scopes }
     );
   }
 
@@ -120,11 +120,11 @@ export class InteractorClient {
     return this.request<void>('POST', `/workflows/${name}/versions/${versionId}/publish`);
   }
 
-  async createWorkflowInstance(name: string, namespace: string, input: any) {
+  async createWorkflowInstance(name: string, userRef: string, input: any) {
     return this.request<{ id: string; status: string }>(
       'POST',
       `/workflows/${name}/instances`,
-      { namespace, input }
+      { user_ref: userRef, input }
     );
   }
 
@@ -132,7 +132,7 @@ export class InteractorClient {
     return this.request<any>('GET', `/workflows/instances/${id}`);
   }
 
-  async listWorkflowInstances(filters?: { namespace?: string; workflow_name?: string; status?: string }) {
+  async listWorkflowInstances(filters?: { user_ref?: string; workflow_name?: string; status?: string }) {
     const params = new URLSearchParams(filters as any).toString();
     return this.request<any[]>('GET', `/workflows/instances${params ? '?' + params : ''}`);
   }
@@ -149,11 +149,12 @@ export class InteractorClient {
 
   async createAssistant(config: {
     name: string;
-    title: string;
+    system_prompt: string;
     description?: string;
-    instructions: string;
-    model_config?: { provider?: string; model?: string; temperature?: number };
-    enabled_tools?: string[];
+    llm_provider?: string;
+    llm_model?: string;
+    llm_config?: { temperature?: number };
+    default_tools?: string[];
   }) {
     return this.request<{ id: string; name: string }>('POST', '/agents/assistants', config);
   }
@@ -170,15 +171,15 @@ export class InteractorClient {
     return this.request<any>('PUT', `/agents/assistants/${id}`, updates);
   }
 
-  async createRoom(assistantId: string, namespace: string, metadata?: any) {
+  async createRoom(assistantId: string, userRef: string, metadata?: any) {
     return this.request<{ id: string; status: string }>(
       'POST',
       `/agents/${assistantId}/rooms`,
-      { namespace, metadata }
+      { user_ref: userRef, metadata }
     );
   }
 
-  async listRooms(filters?: { namespace?: string; assistant_id?: string; status?: string }) {
+  async listRooms(filters?: { user_ref?: string; assistant_id?: string; status?: string }) {
     const params = new URLSearchParams(filters as any).toString();
     return this.request<any[]>('GET', `/agents/rooms${params ? '?' + params : ''}`);
   }
@@ -225,11 +226,11 @@ export class InteractorClient {
 
   // ============ Webhooks ============
 
-  async createWebhook(url: string, events: string[]) {
+  async createWebhook(url: string, eventTypes: string[]) {
     return this.request<{ id: string; secret: string }>(
       'POST',
       '/webhooks',
-      { url, events, enabled: true }
+      { url, event_types: eventTypes, enabled: true }
     );
   }
 
@@ -293,7 +294,7 @@ async function runApprovalWorkflow(userId: string, request: any) {
 // Chat with AI Assistant
 async function chat(userId: string, message: string) {
   // Create or get existing room
-  const rooms = await client.listRooms({ namespace: `user_${userId}`, status: 'active' });
+  const rooms = await client.listRooms({ user_ref: `user_${userId}`, status: 'active' });
   let room = rooms[0];
 
   if (!room) {
@@ -363,8 +364,8 @@ class InteractorClient:
 
     # ============ Credentials ============
 
-    def list_credentials(self, namespace: Optional[str] = None) -> List[Dict]:
-        params = f'?namespace={namespace}' if namespace else ''
+    def list_credentials(self, user_ref: Optional[str] = None) -> List[Dict]:
+        params = f'?user_ref={user_ref}' if user_ref else ''
         return self._request('GET', f'/credentials{params}')
 
     def get_credential(self, id: str) -> Dict:
@@ -376,13 +377,13 @@ class InteractorClient:
     def initiate_oauth(
         self,
         service_id: str,
-        namespace: str,
+        user_ref: str,
         redirect_uri: str,
         scopes: Optional[List[str]] = None
     ) -> Dict:
         return self._request('POST', '/oauth/initiate', {
             'service_id': service_id,
-            'namespace': namespace,
+            'user_ref': user_ref,
             'redirect_uri': redirect_uri,
             'scopes': scopes
         })
@@ -404,9 +405,9 @@ class InteractorClient:
     def publish_workflow(self, name: str, version_id: str) -> None:
         self._request('POST', f'/workflows/{name}/versions/{version_id}/publish')
 
-    def create_workflow_instance(self, name: str, namespace: str, input_data: Dict) -> Dict:
+    def create_workflow_instance(self, name: str, user_ref: str, input_data: Dict) -> Dict:
         return self._request('POST', f'/workflows/{name}/instances', {
-            'namespace': namespace,
+            'user_ref': user_ref,
             'input': input_data
         })
 
@@ -415,13 +416,13 @@ class InteractorClient:
 
     def list_workflow_instances(
         self,
-        namespace: Optional[str] = None,
+        user_ref: Optional[str] = None,
         workflow_name: Optional[str] = None,
         status: Optional[str] = None
     ) -> List[Dict]:
         params = []
-        if namespace:
-            params.append(f'namespace={namespace}')
+        if user_ref:
+            params.append(f'user_ref={user_ref}')
         if workflow_name:
             params.append(f'workflow_name={workflow_name}')
         if status:
@@ -440,19 +441,21 @@ class InteractorClient:
     def create_assistant(
         self,
         name: str,
-        title: str,
-        instructions: str,
+        system_prompt: str,
         description: Optional[str] = None,
-        model_config: Optional[Dict] = None,
-        enabled_tools: Optional[List[str]] = None
+        llm_provider: Optional[str] = None,
+        llm_model: Optional[str] = None,
+        llm_config: Optional[Dict] = None,
+        default_tools: Optional[List[str]] = None
     ) -> Dict:
         return self._request('POST', '/agents/assistants', {
             'name': name,
-            'title': title,
+            'system_prompt': system_prompt,
             'description': description,
-            'instructions': instructions,
-            'model_config': model_config or {},
-            'enabled_tools': enabled_tools or []
+            'llm_provider': llm_provider,
+            'llm_model': llm_model,
+            'llm_config': llm_config or {},
+            'default_tools': default_tools or []
         })
 
     def list_assistants(self) -> List[Dict]:
@@ -467,23 +470,23 @@ class InteractorClient:
     def create_room(
         self,
         assistant_id: str,
-        namespace: str,
+        user_ref: str,
         metadata: Optional[Dict] = None
     ) -> Dict:
         return self._request('POST', f'/agents/{assistant_id}/rooms', {
-            'namespace': namespace,
+            'user_ref': user_ref,
             'metadata': metadata or {}
         })
 
     def list_rooms(
         self,
-        namespace: Optional[str] = None,
+        user_ref: Optional[str] = None,
         assistant_id: Optional[str] = None,
         status: Optional[str] = None
     ) -> List[Dict]:
         params = []
-        if namespace:
-            params.append(f'namespace={namespace}')
+        if user_ref:
+            params.append(f'user_ref={user_ref}')
         if assistant_id:
             params.append(f'assistant_id={assistant_id}')
         if status:
@@ -533,10 +536,10 @@ class InteractorClient:
 
     # ============ Webhooks ============
 
-    def create_webhook(self, url: str, events: List[str]) -> Dict:
+    def create_webhook(self, url: str, event_types: List[str]) -> Dict:
         return self._request('POST', '/webhooks', {
             'url': url,
-            'events': events,
+            'event_types': event_types,
             'enabled': True
         })
 
@@ -598,7 +601,7 @@ def run_approval_workflow(user_id: str, request_data: dict):
 # Chat with AI Assistant
 def chat(user_id: str, message: str):
     # Create or get existing room
-    rooms = client.list_rooms(namespace=f'user_{user_id}', status='active')
+    rooms = client.list_rooms(user_ref=f'user_{user_id}', status='active')
     room = rooms[0] if rooms else client.create_room('asst_support', f'user_{user_id}')
 
     # Send message

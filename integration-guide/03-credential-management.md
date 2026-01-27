@@ -1,6 +1,6 @@
 # Credential Management
 
-**Last Updated:** 2026-01-21
+**Last Updated:** 2026-01-27
 
 Credential Management is Interactor's primary feature for securely storing and managing OAuth tokens and API keys for external services (Google, Slack, Salesforce, etc.).
 
@@ -12,7 +12,7 @@ Interactor handles the complexity of OAuth:
 
 - **Token Storage** - Encrypted storage of access and refresh tokens
 - **Automatic Refresh** - Tokens are refreshed before expiry
-- **Multi-tenant Isolation** - Namespaces separate different users' credentials
+- **Multi-tenant Isolation** - `user_ref` separates different users' credentials
 - **Revocation Handling** - Detects when users revoke access
 
 ---
@@ -401,7 +401,7 @@ Both formats are equivalent. Use whichever is more convenient - Interactor handl
 
 ## Best Practices
 
-1. **Use namespaces per user** - Isolate each of your users' credentials
+1. **Use user_ref per user** - Isolate each of your users' credentials
 2. **Handle revocation gracefully** - Prompt users to re-authorize when credentials are revoked
 3. **Request minimal scopes** - Only request the permissions you need
 4. **Use custom OAuth apps for production** - Provides better branding and higher rate limits

@@ -1,7 +1,7 @@
 # Interactor Integration Guide: Overview
 
 **Version:** 2.0.0
-**Last Updated:** 2026-01-20
+**Last Updated:** 2026-01-27
 
 ---
 
@@ -30,7 +30,7 @@ Interactor is a platform that provides three core capabilities for your applicat
 │  │  - You manage     │────>│  - Authenticates to Interactor with       │   │
 │  │    their auth     │     │    client_id / client_secret              │   │
 │  │  - You decide     │     │  - Calls Interactor APIs on behalf of     │   │
-│  │    permissions    │     │    your users (using namespaces)          │   │
+│  │    permissions    │     │    your users (using user_ref)            │   │
 │  └───────────────────┘     └─────────────────┬─────────────────────────┘   │
 │                                              │                              │
 └──────────────────────────────────────────────┼──────────────────────────────┘
@@ -41,7 +41,7 @@ Interactor is a platform that provides three core capabilities for your applicat
                                       └─────────────────┘
 ```
 
-**Key Point:** Interactor does not manage your end users. Your backend authenticates to Interactor using OAuth client credentials, then calls Interactor APIs on behalf of your users. Namespaces isolate each user's data.
+**Key Point:** Interactor does not manage your end users. Your backend authenticates to Interactor using OAuth client credentials, then calls Interactor APIs on behalf of your users. The `user_ref` parameter isolates each user's data.
 
 ---
 
@@ -85,18 +85,18 @@ This integration guide is organized into the following sections:
 
 ## Core Concepts
 
-### Namespaces
+### User References (user_ref)
 
-Namespaces isolate data within your account. Use them to separate your end users:
+The `user_ref` parameter isolates data within your account. Use it to separate your end users:
 
 ```
 Account: Your Company
-├── Namespace: user_123     → Credentials, workflows for user 123
-├── Namespace: user_456     → Credentials, workflows for user 456
-└── Namespace: shared       → Shared resources
+├── user_ref: user_123     → Credentials, rooms for user 123
+├── user_ref: user_456     → Credentials, rooms for user 456
+└── user_ref: shared       → Shared resources
 ```
 
-Most API calls accept a `namespace` parameter. If omitted, the account-level default is used.
+Most API calls accept a `user_ref` parameter to scope data to a specific user within your account.
 
 ### Authentication Flow
 
@@ -174,17 +174,10 @@ curl https://core.interactor.com/health
 
 | Endpoint Category | Limit |
 |-------------------|-------|
-| Authentication | 10/minute |
-| Read operations | 100/minute |
-| Write operations | 50/minute |
+| All API endpoints | 100 requests per 60 seconds |
 | Streaming | 10 concurrent connections |
 
-Rate limit headers:
-```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1705665600
-```
+When rate limited, you'll receive a `429 Too Many Requests` response.
 
 ---
 
