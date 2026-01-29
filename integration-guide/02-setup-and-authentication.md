@@ -1,6 +1,6 @@
 # Setup and Authentication
 
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-01-29
 
 This guide covers account registration, OAuth client setup, and token management.
 
@@ -557,10 +557,29 @@ OAUTH_GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxx
 OAUTH_SLACK_CLIENT_ID=1234567890.123456789012
 OAUTH_SLACK_CLIENT_SECRET=abcdef123456789
 
-# Optional: Provider-specific or default redirect URI
-OAUTH_REDIRECT_URI=https://your-app.com/oauth/callback
-OAUTH_GOOGLE_REDIRECT_URI=https://your-app.com/oauth/google/callback
+OAUTH_GITHUB_CLIENT_ID=Ov23lixxxxxxxxxx
+OAUTH_GITHUB_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
+
+**Note on OAuth Redirect URI**
+
+You don't need to configure a redirect_uri - Interactor automatically uses its own callback URL. You can retrieve this URL via the `/info` endpoint to use when registering your OAuth apps:
+
+```bash
+curl https://core.interactor.com/info
+```
+
+Response:
+```json
+{
+  "service": "interactor",
+  "version": "0.1.0",
+  "authentication_enabled": true,
+  "oauth_callback_url": "https://core.interactor.com/callback"
+}
+```
+
+Use this `oauth_callback_url` when configuring your OAuth apps in GitHub, Google, Slack, etc.
 
 **How It Works:**
 
@@ -573,7 +592,7 @@ function buildOAuthConfigsFromEnv() {
 
   // Scan for OAUTH_<PROVIDER>_CLIENT_ID pattern
   for (const [key, value] of Object.entries(process.env)) {
-    const match = key.match(/^OAUTH_([A-Z_]+)_(CLIENT_ID|CLIENT_SECRET|REDIRECT_URI)$/);
+    const match = key.match(/^OAUTH_([A-Z_]+)_(CLIENT_ID|CLIENT_SECRET)$/);
     if (match && value) {
       const [, providerUpper, field] = match;
       const provider = providerUpper.toLowerCase();
@@ -589,8 +608,7 @@ function buildOAuthConfigsFromEnv() {
       configs.push({
         auth_provider: provider,
         client_id: config.client_id,
-        client_secret: config.client_secret,
-        redirect_uri: config.redirect_uri || process.env.OAUTH_REDIRECT_URI
+        client_secret: config.client_secret
       });
     }
   }
@@ -607,13 +625,12 @@ function buildOAuthConfigsFromEnv() {
     {
       "auth_provider": "google",
       "client_id": "123456789.apps.googleusercontent.com",
-      "client_secret": "GOCSPX-xxxxxxxxxx",
-      "redirect_uri": "https://your-app.com/oauth/callback"
+      "client_secret": "GOCSPX-xxxxxxxxxx"
     },
     {
-      "auth_provider": "slack",
-      "client_id": "1234567890.123456789012",
-      "client_secret": "abcdef123456789"
+      "auth_provider": "github",
+      "client_id": "Ov23lixxxxxxxxxx",
+      "client_secret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     }
   ]
 }
@@ -624,7 +641,6 @@ function buildOAuthConfigsFromEnv() {
 | `auth_provider` | string | Yes | Provider slug (e.g., `google`, `slack`, `microsoft`) |
 | `client_id` | string | Yes | OAuth client ID from the provider |
 | `client_secret` | string | No | OAuth client secret (encrypted at rest) |
-| `redirect_uri` | string | No | OAuth redirect URI |
 | `additional_params` | object | No | Extra provider-specific parameters |
 | `enabled` | boolean | No | Whether the config is enabled (default: `true`) |
 
@@ -667,7 +683,7 @@ function buildOAuthConfigsFromEnv() {
   const providers = new Map();
 
   for (const [key, value] of Object.entries(process.env)) {
-    const match = key.match(/^OAUTH_([A-Z_]+)_(CLIENT_ID|CLIENT_SECRET|REDIRECT_URI)$/);
+    const match = key.match(/^OAUTH_([A-Z_]+)_(CLIENT_ID|CLIENT_SECRET)$/);
     if (match && value) {
       const [, providerUpper, field] = match;
       const provider = providerUpper.toLowerCase();
@@ -681,8 +697,7 @@ function buildOAuthConfigsFromEnv() {
     .map(([provider, config]) => ({
       auth_provider: provider,
       client_id: config.clientid,
-      client_secret: config.clientsecret,
-      redirect_uri: config.redirecturi || process.env.OAUTH_REDIRECT_URI
+      client_secret: config.clientsecret
     }));
 }
 
