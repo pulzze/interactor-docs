@@ -1,7 +1,7 @@
 # Interactor Integration Guide: Overview
 
 **Version:** 2.0.0
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-01-28
 
 ---
 
@@ -74,7 +74,7 @@ This integration guide is organized into the following sections:
 | Document | Description |
 |----------|-------------|
 | [01-overview.md](01-overview.md) | This document - platform overview |
-| [02-setup-and-authentication.md](02-setup-and-authentication.md) | Account setup, OAuth client creation, token management |
+| [02-setup-and-authentication.md](02-setup-and-authentication.md) | Account setup, OAuth, token management, config sync |
 | [03-credential-management.md](03-credential-management.md) | Managing OAuth tokens and API keys for external services |
 | [04-ai-agents.md](04-ai-agents.md) | Creating AI assistants, chat rooms, tools, and data sources |
 | [05-workflows.md](05-workflows.md) | State-machine workflows with human-in-the-loop |

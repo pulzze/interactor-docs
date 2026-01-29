@@ -1,6 +1,6 @@
 # AI Agents
 
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-01-28
 
 AI Agents are LLM-powered assistants that can have conversations, use tools, and access your data sources to help your users accomplish tasks.
 
@@ -232,7 +232,7 @@ curl -X POST https://core.interactor.com/api/v1/account/callback-secret \
   -d '{"secret": "X18FUShSrb0qGVTt17sgEgV/5naDw1AV5Aqs5HWVEMg="}'
 ```
 
-Or via config sync (recommended):
+Or via [Configuration Code Sync](02-setup-and-authentication.md#configuration-code-sync) (recommended):
 ```json
 {
   "callback_secret": "X18FUShSrb0qGVTt17sgEgV/5naDw1AV5Aqs5HWVEMg=",
