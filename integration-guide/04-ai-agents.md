@@ -1,6 +1,6 @@
 # AI Agents
 
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-01-30
 
 AI Agents are LLM-powered assistants that can have conversations, use tools, and access your data sources to help your users accomplish tasks.
 
@@ -271,6 +271,70 @@ curl -X POST https://core.interactor.com/api/v1/tools \
     "created_at": "2026-01-20T12:00:00Z"
   }
 }
+```
+
+### Workflow Data Access (Optional)
+
+When tools are executed within workflows, they can optionally receive accumulated workflow data. This allows tools to make decisions based on prior workflow steps.
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/tools \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "apply_campaign_settings",
+    "description": "Apply campaign settings to ad platform",
+    "workflow_data_fields": ["strategy", "tactics.channels", "budget"],
+    "parameters": {...},
+    "callback_url": "https://yourapp.com/api/tools/apply-settings"
+  }'
+```
+
+When this tool is called from a workflow, the callback body will include:
+```json
+{
+  "tool_name": "apply_campaign_settings",
+  "arguments": {...},
+  "context": {...},
+  "credentials": {},
+  "workflow_data": {
+    "strategy": {"objective": "awareness"},
+    "tactics": {"channels": ["display", "video"]},
+    "budget": 50000
+  }
+}
+```
+
+**Note:** If `workflow_data_fields` is omitted, no workflow data is sent. Only specified paths are included to keep payloads lean.
+
+### Output Mapping (Optional)
+
+Tools can declaratively map their response into workflow data using JSONPath expressions:
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/tools \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "get_campaign_metrics",
+    "description": "Fetch campaign performance metrics",
+    "output_mapping": {
+      "$.metrics.ctr": "workflow_data.baseline_ctr",
+      "$.metrics.impressions": "workflow_data.total_impressions"
+    },
+    "parameters": {...},
+    "callback_url": "https://yourapp.com/api/tools/get-metrics"
+  }'
+```
+
+When this tool returns:
+```json
+{"metrics": {"ctr": 0.025, "impressions": 10000, "clicks": 250}}
+```
+
+The workflow data will receive:
+```json
+{"baseline_ctr": 0.025, "total_impressions": 10000}
 ```
 
 ### Tool Callback

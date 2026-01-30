@@ -374,6 +374,72 @@ Transition conditions:
 
 ---
 
+## Step Output Configuration
+
+Control how step results are stored in workflow data.
+
+### Basic Output
+
+```json
+{
+  "logic": {"type": "http", "config": {...}},
+  "output": "api_result"
+}
+```
+
+The entire step result is stored at `data.api_result`.
+
+### Nested Path
+
+```json
+{
+  "output": {"path": "order.validation", "mode": "merge"}
+}
+```
+
+Result is stored at `data.order.validation`. With `mode: "merge"`, existing fields are preserved.
+
+### Field Extraction
+
+Extract specific fields from the step result:
+
+```json
+{
+  "output": {
+    "path": "review_result",
+    "extract": {
+      "decision": "outputs.approval_status",
+      "total": "body.data.total"
+    }
+  }
+}
+```
+
+### JSONPath Extraction
+
+For complex data extraction including arrays and filtering, use JSONPath (paths starting with `$`):
+
+```json
+{
+  "output": {
+    "path": "filtered_data",
+    "extract": {
+      "all_ids": "$.items[*].id",
+      "active_users": "$.users[?(@.active == true)].name",
+      "first_item": "$.items[0]"
+    }
+  }
+}
+```
+
+**JSONPath Syntax:**
+- `$.field` - Root-level field
+- `$.array[0]` - First element (`[-1]` for last)
+- `$.array[*].field` - Field from all elements
+- `$.array[?(@.active == true)]` - Filter by condition
+
+---
+
 ## Example: Multi-Level Approval
 
 ```json
