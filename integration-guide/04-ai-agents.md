@@ -274,9 +274,15 @@ curl -X POST https://core.interactor.com/api/v1/tools \
 }
 ```
 
-### Workflow Data Access (Optional)
+### Input/Output Mapping (Optional)
 
-When tools are executed within workflows, they can optionally receive accumulated workflow data. This allows tools to make decisions based on prior workflow steps.
+Tools use a unified JSONPath-based mapping system for workflow data:
+- **Input mapping**: Extract workflow data and transform it for the callback
+- **Output mapping**: Extract tool response data and merge it into workflow state
+
+#### Input Mapping
+
+When tools are executed within workflows, `input_mapping` specifies which workflow data to include in the callback:
 
 ```bash
 curl -X POST https://core.interactor.com/api/v1/tools \
@@ -285,32 +291,36 @@ curl -X POST https://core.interactor.com/api/v1/tools \
   -d '{
     "name": "apply_campaign_settings",
     "description": "Apply campaign settings to ad platform",
-    "workflow_data_fields": ["strategy", "tactics.channels", "budget"],
+    "input_mapping": {
+      "$.strategy": "$.context.strategy",
+      "$.tactics.channels": "$.channels",
+      "$.budget": "$.limits.budget"
+    },
     "parameters": {...},
     "callback_url": "https://yourapp.com/api/tools/apply-settings"
   }'
 ```
 
-When this tool is called from a workflow, the callback body will include:
+When this tool is called from a workflow with data `{"strategy": {"objective": "awareness"}, "tactics": {"channels": ["display", "video"]}, "budget": 50000}`, the callback body will include:
 ```json
 {
   "tool_name": "apply_campaign_settings",
   "arguments": {...},
   "context": {...},
   "credentials": {},
-  "workflow_data": {
-    "strategy": {"objective": "awareness"},
-    "tactics": {"channels": ["display", "video"]},
-    "budget": 50000
-  }
+  "context": {
+    "strategy": {"objective": "awareness"}
+  },
+  "channels": ["display", "video"],
+  "limits": {"budget": 50000}
 }
 ```
 
-**Note:** If `workflow_data_fields` is omitted, no workflow data is sent. Only specified paths are included to keep payloads lean.
+**Note:** If `input_mapping` is omitted, no workflow data is sent. The mapping allows you to rename and restructure data as needed.
 
-### Output Mapping (Optional)
+#### Output Mapping
 
-Tools can declaratively map their response into workflow data using JSONPath expressions:
+Map tool response data into workflow state using JSONPath expressions:
 
 ```bash
 curl -X POST https://core.interactor.com/api/v1/tools \
@@ -320,8 +330,8 @@ curl -X POST https://core.interactor.com/api/v1/tools \
     "name": "get_campaign_metrics",
     "description": "Fetch campaign performance metrics",
     "output_mapping": {
-      "$.metrics.ctr": "workflow_data.baseline_ctr",
-      "$.metrics.impressions": "workflow_data.total_impressions"
+      "$.metrics.ctr": "$.baseline_ctr",
+      "$.metrics.impressions": "$.total_impressions"
     },
     "parameters": {...},
     "callback_url": "https://yourapp.com/api/tools/get-metrics"
