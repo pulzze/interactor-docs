@@ -529,7 +529,94 @@ curl -X POST https://core.interactor.com/api/v1/workflows/instances/inst_xyz/thr
 
 ---
 
-## Halting Presentations
+## Halting Instructions
+
+When a workflow halts, you can configure how the halting message is generated and presented to users.
+
+### AI-Generated Instructions
+
+Use AI to dynamically generate contextual messages based on workflow data:
+
+```json
+{
+  "await_approval": {
+    "type": "halting",
+    "halting_instructions": {
+      "type": "ai",
+      "config": {
+        "prompt": "Summarize this order and ask the user to approve or reject it.",
+        "model": "claude-3-haiku-20240307",
+        "include_data_paths": ["order", "customer", "risk_score"]
+      }
+    },
+    "transition_mode": "selection",
+    "transitions": [
+      {"key": "approve", "to": "approved", "description": "Approve the order"},
+      {"key": "reject", "to": "rejected", "description": "Reject the order"}
+    ]
+  }
+}
+```
+
+**Simple format** - treats `instruction` as an AI prompt:
+
+```json
+{
+  "halting_instructions": {
+    "instruction": "Tell the user the strategy is ready for review. Highlight key metrics and risks.",
+    "include_data": ["strategy", "benchmarks", "risk_assessment"]
+  }
+}
+```
+
+### Static Message Instructions
+
+For static messages without AI generation:
+
+```json
+{
+  "halting_instructions": {
+    "type": "message",
+    "config": {
+      "title": "Approval Required",
+      "message": "This order exceeds the automatic approval threshold and requires manual review."
+    }
+  }
+}
+```
+
+### Halted Response
+
+When halted, the API response includes `halted_options`:
+
+```json
+{
+  "status": "halted",
+  "halted_at_state": "await_approval",
+  "halted_options": {
+    "instruction": "Order #123 for $150.00 from Acme Corp is ready. Risk score: Low (23).",
+    "include_data": ["order", "customer"],
+    "transition_mode": "selection",
+    "choices": [
+      {"key": "approve", "description": "Approve the order", "to": "approved"},
+      {"key": "reject", "description": "Reject the order", "to": "rejected"}
+    ],
+    "generated": true
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `instruction` | Message to display (AI-generated or static) |
+| `generated` | `true` if AI-generated, `false` if static |
+| `choices` | Available transitions for selection mode |
+
+---
+
+## Halting Presentations (Legacy)
+
+> **Note**: The `presentation` format is still supported for backward compatibility. New workflows should use `halting_instructions` above.
 
 When a workflow halts, specify how to present the required input to users.
 

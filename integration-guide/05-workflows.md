@@ -1,6 +1,6 @@
 # Workflows
 
-**Last Updated:** 2026-01-30
+**Last Updated:** 2026-02-02
 
 Workflows are state-machine based automations with human-in-the-loop support. Use them to model multi-step business processes that may require approvals, user input, or external integrations.
 
@@ -456,43 +456,103 @@ curl "https://core.interactor.com/api/v1/workflows/errors?since=2026-01-20T00:00
 
 ---
 
-## Halting Presentations
+## Halting Instructions
 
-When a workflow halts, it can specify how to present the required input to users.
+When a workflow halts, you can configure how the halting message is generated and presented to users using `halting_instructions`.
 
-### Form Presentation
+### AI-Generated Instructions
+
+Use AI to dynamically generate contextual messages based on workflow data:
 
 ```json
 {
-  "type": "form",
-  "fields": [
-    {"name": "approved", "type": "boolean", "label": "Approve this request?"},
-    {"name": "amount", "type": "number", "label": "Approved Amount"},
-    {"name": "notes", "type": "string", "label": "Notes", "multiline": true}
-  ]
+  "await_approval": {
+    "type": "halting",
+    "halting_instructions": {
+      "type": "ai",
+      "config": {
+        "prompt": "Summarize this order and ask the user to approve or reject it.",
+        "model": "claude-3-haiku-20240307",
+        "include_data_paths": ["order", "customer", "risk_score"]
+      }
+    },
+    "transition_mode": "selection",
+    "transitions": [
+      {"key": "approve", "to": "approved", "description": "Approve the order"},
+      {"key": "reject", "to": "rejected", "description": "Reject the order"}
+    ]
+  }
 }
 ```
 
-### Choice Presentation
+**Simple AI format** - treats `instruction` as an AI prompt:
 
 ```json
 {
-  "type": "choice",
-  "message": "Select the next action",
-  "options": [
-    {"value": "approve", "label": "Approve"},
-    {"value": "reject", "label": "Reject"},
-    {"value": "escalate", "label": "Escalate to Manager"}
-  ]
+  "halting_instructions": {
+    "instruction": "Tell the user the strategy is ready for review. Highlight key metrics.",
+    "include_data": ["strategy", "benchmarks"]
+  }
 }
 ```
 
-### Message Presentation
+### Static Message
+
+For simple static messages without AI generation:
 
 ```json
 {
-  "type": "message",
-  "message": "Waiting for external system response..."
+  "halting_instructions": {
+    "type": "message",
+    "config": {
+      "title": "Approval Required",
+      "message": "This order exceeds the automatic approval threshold."
+    }
+  }
+}
+```
+
+### Halted Response Format
+
+When an instance is halted, the API response includes `halted_options`:
+
+```json
+{
+  "status": "halted",
+  "halted_at_state": "await_approval",
+  "halted_options": {
+    "instruction": "Order #123 for $150.00 from Acme Corp is ready for approval. Risk score: Low.",
+    "include_data": ["order", "customer"],
+    "transition_mode": "selection",
+    "choices": [
+      {"key": "approve", "description": "Approve the order", "to": "approved"},
+      {"key": "reject", "description": "Reject the order", "to": "rejected"}
+    ],
+    "generated": true
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `instruction` | Message to display (AI-generated or static) |
+| `include_data` | Workflow data paths included in context |
+| `choices` | Available transitions for selection mode |
+| `generated` | `true` if AI-generated, `false` if static |
+
+### Legacy Presentation Format
+
+For backward compatibility, form-style presentations are still supported:
+
+```json
+{
+  "presentation": {
+    "type": "form",
+    "fields": [
+      {"name": "approved", "type": "boolean", "label": "Approve this request?"},
+      {"name": "notes", "type": "string", "label": "Notes", "multiline": true}
+    ]
+  }
 }
 ```
 
