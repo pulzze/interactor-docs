@@ -26,7 +26,7 @@ The integration guide is organized into the following sections:
 | [01. Overview](integration-guide/01-overview.md) | Platform overview, architecture, and core concepts |
 | [02. Setup and Authentication](integration-guide/02-setup-and-authentication.md) | Account registration, OAuth client setup, token management |
 | [03. Credential Management](integration-guide/03-credential-management.md) | OAuth flows, token storage, custom OAuth apps |
-| [04. AI Agents](integration-guide/04-ai-agents.md) | Assistants, chat rooms, tools, and data sources |
+| [04. AI Agents](integration-guide/04-ai-agents.md) | Assistants, chat rooms, tools, data sources, and user profiles |
 | [05. Workflows](integration-guide/05-workflows.md) | State machines with human-in-the-loop support |
 | [06. Webhooks and Streaming](integration-guide/06-webhooks-and-streaming.md) | Event subscriptions and real-time updates (SSE) |
 | [07. SDK Examples](integration-guide/07-sdk-examples.md) | Complete TypeScript and Python code examples |

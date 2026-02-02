@@ -1,6 +1,6 @@
 # AI Agents
 
-**Last Updated:** 2026-01-30
+**Last Updated:** 2026-02-02
 
 AI Agents are LLM-powered assistants that can have conversations, use tools, and access your data sources to help your users accomplish tasks.
 
@@ -66,6 +66,7 @@ curl -X POST https://core.interactor.com/api/v1/agents/assistants \
 | `session_timeout_minutes` | integer | No | Auto-close rooms after inactivity |
 | `active` | boolean | No | Whether the assistant is enabled (default: `true`) |
 | `metadata` | object | No | Custom data to store with the assistant |
+| `builtin_tools` | object | No | Configure built-in tool availability (see User Profiles) |
 
 ### List Assistants
 
@@ -643,6 +644,297 @@ curl https://core.interactor.com/api/v1/knowledge-base/services/google_calendar/
 
 ---
 
+## User Profiles
+
+User profiles allow you to store user preferences, context, and instructions that follow users across all their interactions with assistants.
+
+### Overview
+
+Profiles exist at three levels with inheritance:
+
+| Scope | Purpose | When to Use |
+|-------|---------|-------------|
+| **Account Default** | Organization-wide defaults | Global settings for all users |
+| **Context** | Team/project/region settings | Different behavior per department or use case |
+| **User** | Individual preferences | Personal customizations |
+
+When a user sends a message, profiles are merged in order: **Default → Context → User** (later layers override earlier ones).
+
+### Profile Structure
+
+```json
+{
+  "preferences": {
+    "units": "metric",
+    "verbosity": "brief",
+    "timezone": "America/New_York",
+    "locale": "en-US",
+    "date_format": "ISO",
+    "currency": "USD"
+  },
+  "context": {
+    "department": "Engineering",
+    "role": "Senior Developer",
+    "team": "Platform"
+  },
+  "instructions": [
+    "Always be concise and technical",
+    "Prefer code examples over prose"
+  ],
+  "memory": {
+    "facts": [
+      {"key": "project", "value": "Project Atlas", "learned_at": "2026-01-15"},
+      {"key": "preference", "value": "prefers dark mode"}
+    ]
+  }
+}
+```
+
+**Validated Preference Values:**
+
+| Field | Valid Values |
+|-------|--------------|
+| `units` | `metric`, `imperial` |
+| `verbosity` | `brief`, `normal`, `detailed` |
+| `date_format` | `ISO`, `US`, `EU` |
+
+Other preferences (`timezone`, `locale`, `currency`) are freeform strings.
+
+**Size Limit:** 64KB per profile
+
+### Account Default Profile
+
+```bash
+# Get account default
+curl https://core.interactor.com/api/v1/profiles/default \
+  -H "Authorization: Bearer <token>"
+
+# Set account default
+curl -X PUT https://core.interactor.com/api/v1/profiles/default \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {
+      "preferences": {
+        "verbosity": "normal",
+        "units": "metric"
+      },
+      "instructions": [
+        "Be helpful and professional"
+      ]
+    }
+  }'
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "profile": {
+      "preferences": {"verbosity": "normal", "units": "metric"},
+      "instructions": ["Be helpful and professional"]
+    },
+    "metadata": {
+      "scope": "default",
+      "scope_id": null,
+      "updated_at": "2026-01-20T12:00:00Z"
+    }
+  }
+}
+```
+
+### Context Profiles
+
+Context profiles provide an optional middle layer for teams, projects, or regions.
+
+```bash
+# List all context profiles
+curl https://core.interactor.com/api/v1/profiles/context \
+  -H "Authorization: Bearer <token>"
+
+# Get specific context profile
+curl https://core.interactor.com/api/v1/profiles/context/team-engineering \
+  -H "Authorization: Bearer <token>"
+
+# Create/update context profile
+curl -X PUT https://core.interactor.com/api/v1/profiles/context/team-engineering \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {
+      "context": {
+        "team": "Engineering",
+        "department": "Product"
+      },
+      "instructions": [
+        "Focus on technical accuracy",
+        "Reference internal documentation when applicable"
+      ]
+    }
+  }'
+
+# Delete context profile
+curl -X DELETE https://core.interactor.com/api/v1/profiles/context/team-engineering \
+  -H "Authorization: Bearer <token>"
+```
+
+### User Profiles
+
+```bash
+# List user profiles (paginated)
+curl "https://core.interactor.com/api/v1/profiles/user?limit=20&offset=0" \
+  -H "Authorization: Bearer <token>"
+
+# Get specific user profile
+curl https://core.interactor.com/api/v1/profiles/user/user_123 \
+  -H "Authorization: Bearer <token>"
+
+# Create/update user profile
+curl -X PUT https://core.interactor.com/api/v1/profiles/user/user_123 \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {
+      "preferences": {
+        "verbosity": "brief",
+        "units": "imperial"
+      },
+      "memory": {
+        "facts": [
+          {"key": "role", "value": "Product Manager"},
+          {"key": "project", "value": "Q1 Launch"}
+        ]
+      }
+    }
+  }'
+
+# Delete user profile
+curl -X DELETE https://core.interactor.com/api/v1/profiles/user/user_123 \
+  -H "Authorization: Bearer <token>"
+```
+
+**Pagination Response:**
+```json
+{
+  "data": [
+    {"profile": {...}, "metadata": {...}},
+    {"profile": {...}, "metadata": {...}}
+  ],
+  "pagination": {
+    "total": 150,
+    "limit": 20,
+    "offset": 0
+  }
+}
+```
+
+### Get Effective (Merged) Profile
+
+Get the fully merged profile for a user, combining all applicable layers:
+
+```bash
+# Without context
+curl https://core.interactor.com/api/v1/profiles/effective/user_123 \
+  -H "Authorization: Bearer <token>"
+
+# With context layer
+curl "https://core.interactor.com/api/v1/profiles/effective/user_123?context=team-engineering" \
+  -H "Authorization: Bearer <token>"
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "profile": {
+      "preferences": {"verbosity": "brief", "units": "imperial"},
+      "context": {"team": "Engineering", "department": "Product"},
+      "instructions": [
+        "Be helpful and professional",
+        "Focus on technical accuracy"
+      ],
+      "memory": {
+        "facts": [{"key": "role", "value": "Product Manager"}]
+      }
+    },
+    "metadata": {
+      "user_id": "user_123",
+      "context_id": "team-engineering",
+      "merged_at": "2026-01-20T12:05:00Z"
+    }
+  }
+}
+```
+
+### Using Profiles with Messages
+
+Pass profile context when sending messages to load the appropriate profile:
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/agents/rooms/room_xyz/messages \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "What time is our standup?",
+    "role": "user",
+    "user_ref": "user_123",
+    "profile_context": "team-engineering"
+  }'
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `user_ref` | string | User identifier for profile lookup |
+| `profile_context` | string | Optional context_id for 3-layer merge |
+
+When `user_ref` is provided:
+1. User profile is auto-created if it doesn't exist
+2. Effective profile is loaded (merging default → context → user)
+3. Profile data is included in the assistant's system prompt
+
+### Built-in Profile Tools
+
+Assistants have access to profile management tools that let users view and update their preferences during conversations.
+
+| Tool | Description |
+|------|-------------|
+| `get_my_profile` | Returns the user's profile data |
+| `update_my_profile` | Updates specific fields in the user's profile |
+| `get_effective_profile` | Returns the fully merged profile |
+| `suggest_memory_update` | Suggests a memory fact for the solution app to review |
+
+**Disabling Profile Tools:**
+
+You can disable profile tools for specific assistants:
+
+```bash
+curl -X PUT https://core.interactor.com/api/v1/agents/assistants/asst_abc \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "builtin_tools": {
+      "profile_management": false
+    }
+  }'
+```
+
+**Example Conversation:**
+
+```
+User: "Update my preferences to use metric units"
+Assistant: [Uses update_my_profile tool]
+  I have updated your preferences to use metric units for measurements.
+
+User: "What are my current settings?"
+Assistant: [Uses get_my_profile tool]
+  Your current profile settings are:
+  - Units: metric
+  - Verbosity: brief
+  ...
+```
+
+---
+
 ## Best Practices
 
 1. **Keep instructions focused** - Clear, specific instructions produce better results
@@ -651,6 +943,7 @@ curl https://core.interactor.com/api/v1/knowledge-base/services/google_calendar/
 4. **Use read-only database users** - Limit data source connections to read-only access
 5. **Monitor tool usage** - Track which tools are being called and how often
 6. **Test conversations** - Verify assistant behavior before deploying to users
+7. **Use profiles for personalization** - Store user preferences in profiles rather than room metadata
 
 ---
 
@@ -672,3 +965,4 @@ See [Webhooks and Streaming](06-webhooks-and-streaming.md) for details.
 - [Workflows](05-workflows.md) - Combine AI agents with automated workflows
 - [Webhooks and Streaming](06-webhooks-and-streaming.md) - Real-time message streaming
 - [SDK Examples](07-sdk-examples.md) - Complete code examples
+
