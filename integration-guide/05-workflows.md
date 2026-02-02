@@ -1,6 +1,6 @@
 # Workflows
 
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-01-30
 
 Workflows are state-machine based automations with human-in-the-loop support. Use them to model multi-step business processes that may require approvals, user input, or external integrations.
 
@@ -278,6 +278,184 @@ curl -X POST https://core.interactor.com/api/v1/workflows/instances/inst_xyz/thr
 
 ---
 
+## History API
+
+Track and debug workflow execution with the History API. Every state transition, step execution, and significant event is recorded.
+
+### List History Events
+
+```bash
+curl https://core.interactor.com/api/v1/workflows/instances/inst_xyz/history \
+  -H "Authorization: Bearer <token>"
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `limit` | integer | Max events to return (default: 50, max: 100) |
+| `cursor` | string | Pagination cursor from previous response |
+| `types` | string | Filter by event type (comma-separated) |
+| `since` | ISO8601 | Only events after this timestamp |
+
+**Response:**
+```json
+{
+  "data": {
+    "instance_id": "inst_xyz",
+    "workflow_id": "wf_abc",
+    "events": [
+      {
+        "id": "evt_01HX...",
+        "type": "lifecycle",
+        "subtype": "created",
+        "timestamp": "2026-01-20T12:00:00Z",
+        "initial_state": "request",
+        "started_by": "user_123"
+      },
+      {
+        "id": "evt_01HX...",
+        "type": "transition",
+        "subtype": "state_change",
+        "timestamp": "2026-01-20T12:00:01Z",
+        "from_state": "request",
+        "to_state": "await_approval",
+        "trigger": "automatic"
+      },
+      {
+        "id": "evt_01HX...",
+        "type": "halt",
+        "subtype": "waiting",
+        "timestamp": "2026-01-20T12:00:01Z",
+        "state": "await_approval",
+        "message": "Waiting for manager approval"
+      }
+    ],
+    "pagination": {
+      "has_more": false,
+      "next_cursor": null
+    }
+  }
+}
+```
+
+### Get Single Event
+
+```bash
+curl https://core.interactor.com/api/v1/workflows/instances/inst_xyz/events/evt_01HX... \
+  -H "Authorization: Bearer <token>"
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "id": "evt_01HX...",
+    "type": "step",
+    "subtype": "completed",
+    "timestamp": "2026-01-20T12:00:01Z",
+    "state": "processing",
+    "step_name": "api_call",
+    "step_type": "http",
+    "duration_ms": 250,
+    "changes": {
+      "added": {"api_response": {"status": "ok"}},
+      "updated": {"status": {"from": "pending", "to": "processed"}}
+    }
+  }
+}
+```
+
+### Event Types
+
+| Type | Subtypes | Description |
+|------|----------|-------------|
+| `lifecycle` | `created`, `completed`, `failed`, `cancelled` | Instance lifecycle events |
+| `transition` | `state_change`, `fork`, `join` | State transitions and thread operations |
+| `step` | `completed`, `failed` | Step execution results |
+| `halt` | `waiting` | Workflow paused for input |
+| `error` | `step_failed`, `instance_failed` | Non-retryable failures |
+
+### Thread Status
+
+For workflows with parallel execution:
+
+```bash
+curl https://core.interactor.com/api/v1/workflows/instances/inst_xyz/threads \
+  -H "Authorization: Bearer <token>"
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "instance_id": "inst_xyz",
+    "threads": [
+      {
+        "thread_id": "main",
+        "status": "completed",
+        "current_state": "merge",
+        "event_count": 5
+      },
+      {
+        "thread_id": "payment",
+        "status": "completed",
+        "current_state": "payment_done",
+        "parent_thread_id": "main",
+        "event_count": 3
+      }
+    ],
+    "summary": {
+      "total": 2,
+      "by_status": {"completed": 2}
+    }
+  }
+}
+```
+
+### Error Aggregation
+
+Query errors across all workflows:
+
+```bash
+curl "https://core.interactor.com/api/v1/workflows/errors?since=2026-01-20T00:00:00Z" \
+  -H "Authorization: Bearer <token>"
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `since` | ISO8601 | **Required.** Start of time range |
+| `until` | ISO8601 | End of time range (default: now) |
+| `workflow_name` | string | Filter by workflow |
+| `error_code` | string | Filter by error code |
+
+**Response:**
+```json
+{
+  "data": {
+    "errors": [
+      {
+        "error_id": "err_abc",
+        "instance_id": "inst_xyz",
+        "workflow_name": "approval_workflow",
+        "error_code": "HTTP_TIMEOUT",
+        "message": "Request timed out",
+        "timestamp": "2026-01-20T12:00:00Z"
+      }
+    ],
+    "summary": {
+      "total": 1,
+      "by_error_code": {"HTTP_TIMEOUT": 1},
+      "by_workflow": {"approval_workflow": 1}
+    }
+  }
+}
+```
+
+---
+
 ## Halting Presentations
 
 When a workflow halts, it can specify how to present the required input to users.
@@ -511,6 +689,9 @@ For complex data extraction including arrays and filtering, use JSONPath (paths 
 | `instance_not_halted` | Cannot resume - instance not in halted state |
 | `invalid_transition` | Input doesn't match any transition condition |
 | `script_error` | Error executing workflow script |
+| `instance_not_found` | Workflow instance doesn't exist |
+| `invalid_cursor` | Pagination cursor is malformed or expired |
+| `missing_parameter` | Required parameter not provided |
 
 ---
 
