@@ -540,8 +540,48 @@ Re-extract the schema if your database structure changed:
 
 ```bash
 curl -X POST https://core.interactor.com/api/v1/data-sources/ds_abc/refresh-schema \
-  -H "Authorization: Bearer <token>"
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "force": false,
+    "include_analysis": true
+  }'
 ```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `force` | boolean | `false` | Bypass 5-minute cooldown between refreshes |
+| `include_analysis` | boolean | `true` | Include AI-assisted schema enrichment (descriptions, aliases) |
+
+**Response:**
+```json
+{
+  "data": {
+    "refresh_id": "uuid",
+    "status": "completed",
+    "previous_snapshot_at": "2026-01-07T02:00:00Z",
+    "current_snapshot_at": "2026-02-02T14:30:00Z",
+    "changes": {
+      "severity": "additive",
+      "tables_added": ["campaign_analytics"],
+      "tables_removed": [],
+      "column_changes": {}
+    },
+    "actions_taken": [
+      "Extracted schema from database",
+      "Detected 1 new table(s)",
+      "Generated AI-assisted descriptions"
+    ],
+    "duration_ms": 1250
+  }
+}
+```
+
+Change severity levels:
+- `none` - No schema changes detected
+- `additive` - New tables or columns added
+- `modification` - Column types or constraints changed
+- `breaking` - Tables or columns removed
 
 ### Execute Query
 
