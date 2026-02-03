@@ -276,7 +276,7 @@ curl -X POST https://core.interactor.com/api/v1/tools \
 
 ### Input/Output Mapping (Optional)
 
-Tools use a unified JSONPath-based mapping system for workflow data:
+Tools use a unified JSONata-based mapping system for workflow data:
 - **Input mapping**: Extract workflow data and transform it for the callback
 - **Output mapping**: Extract tool response data and merge it into workflow state
 
@@ -292,9 +292,9 @@ curl -X POST https://core.interactor.com/api/v1/tools \
     "name": "apply_campaign_settings",
     "description": "Apply campaign settings to ad platform",
     "input_mapping": {
-      "$.strategy": "$.context.strategy",
-      "$.tactics.channels": "$.channels",
-      "$.budget": "$.limits.budget"
+      "strategy": "context.strategy",
+      "tactics.channels": "channels",
+      "budget": "limits.budget"
     },
     "parameters": {...},
     "callback_url": "https://yourapp.com/api/tools/apply-settings"
@@ -320,7 +320,7 @@ When this tool is called from a workflow with data `{"strategy": {"objective": "
 
 #### Output Mapping
 
-Map tool response data into workflow state using JSONPath expressions:
+Map tool response data into workflow state using JSONata expressions:
 
 ```bash
 curl -X POST https://core.interactor.com/api/v1/tools \
@@ -330,8 +330,8 @@ curl -X POST https://core.interactor.com/api/v1/tools \
     "name": "get_campaign_metrics",
     "description": "Fetch campaign performance metrics",
     "output_mapping": {
-      "$.metrics.ctr": "$.baseline_ctr",
-      "$.metrics.impressions": "$.total_impressions"
+      "metrics.ctr": "baseline_ctr",
+      "metrics.impressions": "total_impressions"
     },
     "parameters": {...},
     "callback_url": "https://yourapp.com/api/tools/get-metrics"

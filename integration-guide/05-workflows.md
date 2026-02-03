@@ -657,28 +657,32 @@ Extract specific fields from the step result:
 }
 ```
 
-### JSONPath Extraction
+### JSONata Expressions
 
-For complex data extraction including arrays and filtering, use JSONPath (paths starting with `$`):
+For complex data extraction and transformation, use JSONata expressions:
 
 ```json
 {
   "output": {
     "path": "filtered_data",
     "extract": {
-      "all_ids": "$.items[*].id",
-      "active_users": "$.users[?(@.active == true)].name",
-      "first_item": "$.items[0]"
+      "all_ids": "items.id",
+      "active_users": "users[active = true].name",
+      "first_item": "items[0]",
+      "total_price": "items.price ~> $sum()"
     }
   }
 }
 ```
 
-**JSONPath Syntax:**
-- `$.field` - Root-level field
-- `$.array[0]` - First element (`[-1]` for last)
-- `$.array[*].field` - Field from all elements
-- `$.array[?(@.active == true)]` - Filter by condition
+**JSONata Syntax:**
+- `field` - Access a field
+- `array[0]` - First element (`array[-1]` for last)
+- `array.field` - Field from all elements (implicit map)
+- `array[active = true]` - Filter by condition
+- `items.price ~> $sum()` - Transform with functions
+
+See [JSONata documentation](https://jsonata.org) for the full expression language.
 
 ---
 
