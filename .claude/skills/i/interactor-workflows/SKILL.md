@@ -529,6 +529,81 @@ curl -X POST https://core.interactor.com/api/v1/workflows/instances/inst_xyz/thr
 
 ---
 
+## History API
+
+Query workflow execution history for debugging, monitoring, and audit.
+
+### List History Events
+
+```bash
+curl https://core.interactor.com/api/v1/workflows/instances/inst_xyz/history \
+  -H "Authorization: Bearer <token>"
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `limit` | integer | Max events (default: 100, max: 1000) |
+| `cursor` | string | Pagination cursor |
+| `types` | string | Filter by type: `transition`, `step`, `halt`, `error`, `lifecycle` |
+| `since` | ISO8601 | Events after this timestamp |
+| `until` | ISO8601 | Events before this timestamp |
+| `thread` | string | Filter to specific thread |
+| `include_data` | boolean | Include workflow_data snapshots |
+
+**Response:**
+```json
+{
+  "data": {
+    "instance_id": "inst_xyz",
+    "workflow_id": "wf_abc",
+    "status": "completed",
+    "events": [
+      {
+        "id": "evt_01HX...",
+        "type": "lifecycle",
+        "subtype": "created",
+        "timestamp": "2026-01-20T12:00:00Z",
+        "initial_state": "request"
+      },
+      {
+        "id": "evt_01HX...",
+        "type": "transition",
+        "subtype": "state_change",
+        "from_state": "request",
+        "to_state": "processing",
+        "trigger": "automatic",
+        "changes": {
+          "updated": {"status": {"from": "pending", "to": "processing"}}
+        }
+      }
+    ],
+    "pagination": {"has_more": false, "next_cursor": null}
+  }
+}
+```
+
+### Get Single Event
+
+```bash
+curl https://core.interactor.com/api/v1/workflows/instances/inst_xyz/events/evt_01HX... \
+  -H "Authorization: Bearer <token>"
+```
+
+Add `?include_data=true` to include the `workflow_data` snapshot at that point.
+
+### Error Dashboard
+
+Query errors across all workflows:
+
+```bash
+curl "https://core.interactor.com/api/v1/workflows/errors?since=2026-01-20T00:00:00Z" \
+  -H "Authorization: Bearer <token>"
+```
+
+---
+
 ## Halting Instructions
 
 When a workflow halts, you can configure how the halting message is generated and presented to users.

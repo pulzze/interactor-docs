@@ -293,10 +293,14 @@ curl https://core.interactor.com/api/v1/workflows/instances/inst_xyz/history \
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `limit` | integer | Max events to return (default: 50, max: 100) |
+| `limit` | integer | Max events to return (default: 100, max: 1000) |
 | `cursor` | string | Pagination cursor from previous response |
 | `types` | string | Filter by event type (comma-separated) |
 | `since` | ISO8601 | Only events after this timestamp |
+| `until` | ISO8601 | Only events before this timestamp |
+| `thread` | string | Filter to specific thread |
+| `state` | string | Filter to events in a specific state |
+| `include_data` | boolean | Include workflow_data snapshots (default: false) |
 
 **Response:**
 ```json
