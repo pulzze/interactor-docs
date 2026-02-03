@@ -29,8 +29,8 @@ curl -X POST https://core.interactor.com/api/v1/agents/assistants \
     "name": "support_assistant",
     "description": "Helps users with support questions",
     "system_prompt": "You are a helpful support assistant. Be concise and friendly.",
-    "llm_provider": "anthropic",
-    "llm_model": "claude-sonnet-4-20250514",
+    "llm_provider": "openai",
+    "llm_model": "gpt-4o",
     "llm_config": {
       "temperature": 0.7
     },
@@ -57,7 +57,7 @@ curl -X POST https://core.interactor.com/api/v1/agents/assistants \
 | `name` | string | Yes | Unique identifier (lowercase, underscores) |
 | `system_prompt` | string | Yes | System prompt defining behavior |
 | `description` | string | No | What the assistant does |
-| `llm_provider` | string | No | `anthropic` or `openai` (default: `openai`) |
+| `llm_provider` | string | No | `openai` (default: `openai`) |
 | `llm_model` | string | No | Model identifier |
 | `llm_config` | object | No | LLM settings (e.g., `{"temperature": 0.7}`) |
 | `default_tools` | array | No | Tool IDs the assistant can use |

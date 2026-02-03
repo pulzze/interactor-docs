@@ -110,8 +110,8 @@ curl -X POST https://core.interactor.com/api/v1/agents/assistants \
     "title": "Support Assistant",
     "description": "Helps users with support questions",
     "model_config": {
-      "provider": "anthropic",
-      "model": "claude-sonnet-4-20250514",
+      "provider": "openai",
+      "model": "gpt-4o",
       "temperature": 0.7
     },
     "instructions": "You are a helpful support assistant. Be concise and friendly. Always try to resolve issues on the first response.",
@@ -128,8 +128,8 @@ curl -X POST https://core.interactor.com/api/v1/agents/assistants \
     "title": "Support Assistant",
     "description": "Helps users with support questions",
     "model_config": {
-      "provider": "anthropic",
-      "model": "claude-sonnet-4-20250514",
+      "provider": "openai",
+      "model": "gpt-4o",
       "temperature": 0.7
     },
     "enabled_tools": ["search_knowledge_base", "create_ticket"],
@@ -145,8 +145,8 @@ curl -X POST https://core.interactor.com/api/v1/agents/assistants \
 | `name` | string | Yes | Unique identifier (lowercase, underscores only) |
 | `title` | string | Yes | Display name for users |
 | `description` | string | No | What the assistant does |
-| `model_config.provider` | string | No | `anthropic` or `openai` (default: `anthropic`) |
-| `model_config.model` | string | No | Model identifier (default: `claude-sonnet-4-20250514`) |
+| `model_config.provider` | string | No | `openai` (default: `openai`) |
+| `model_config.model` | string | No | Model identifier (default: `gpt-4o`) |
 | `model_config.temperature` | number | No | Response randomness 0.0-1.0 (default: 0.7) |
 | `instructions` | string | Yes | System prompt defining behavior |
 | `enabled_tools` | array | No | Tool names the assistant can use |
@@ -1492,7 +1492,7 @@ export class AgentManager {
     description?: string;
     instructions: string;
     modelConfig?: {
-      provider?: 'anthropic' | 'openai';
+      provider?: 'openai';
       model?: string;
       temperature?: number;
     };
@@ -2620,7 +2620,7 @@ When implementing AI agents, provide this summary:
 ### Configuration
 | Setting | Value |
 |---------|-------|
-| Model | claude-sonnet-4-20250514 |
+| Model | gpt-4o |
 | Temperature | 0.7 |
 | Tools | search_products, create_ticket |
 
