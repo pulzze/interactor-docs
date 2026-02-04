@@ -30,6 +30,7 @@ The integration guide is organized into the following sections:
 | [05. Workflows](integration-guide/05-workflows.md) | State machines with human-in-the-loop support |
 | [06. Webhooks and Streaming](integration-guide/06-webhooks-and-streaming.md) | Event subscriptions and real-time updates (SSE) |
 | [07. SDK Examples](integration-guide/07-sdk-examples.md) | Complete TypeScript and Python code examples |
+| [08. Expressions](integration-guide/08-expressions.md) | JSONata expressions for data transformation and conditions |
 
 ---
 
