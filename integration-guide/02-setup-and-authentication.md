@@ -451,8 +451,8 @@ This allows the same config files to work across environments by setting differe
     "description": "Helps users with support questions",
     "type": "conversational",
     "system_prompt": "You are a helpful support assistant...",
-    "llm_provider": "anthropic",
-    "llm_model": "claude-sonnet-4-20250514",
+    "llm_provider": "openai",
+    "llm_model": "gpt-4o",
     "llm_config": {
       "temperature": 0.7
     },
@@ -467,7 +467,7 @@ This allows the same config files to work across environments by setting differe
 | `description` | string | No | What the assistant does |
 | `type` | string | No | `conversational` (default) |
 | `system_prompt` | string | Yes | System prompt defining behavior |
-| `llm_provider` | string | No | `anthropic` or `openai` |
+| `llm_provider` | string | No | `openai` |
 | `llm_model` | string | No | Model identifier |
 | `llm_config` | object | No | LLM settings (e.g., `{"temperature": 0.7}`) |
 | `default_tools` | array | No | Tool names the assistant can use |

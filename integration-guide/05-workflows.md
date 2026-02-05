@@ -541,7 +541,7 @@ Use AI to dynamically generate contextual messages based on workflow data:
       "type": "ai",
       "config": {
         "prompt": "Summarize this order and ask the user to approve or reject it.",
-        "model": "claude-3-haiku-20240307",
+        "model": "gpt-4o-mini",
         "include_data_paths": ["order", "customer", "risk_score"]
       }
     },
