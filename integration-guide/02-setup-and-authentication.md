@@ -123,10 +123,9 @@ The Account Server issues different token types based on how you authenticate:
 | Token Type | When Issued | Use Case |
 |------------|-------------|----------|
 | **App Token** | Client credentials grant | Backend server-to-server calls |
-| **User Token** | User login (authorization code) | User-facing API calls |
-| **Org Token** | Organization-level auth | Admin operations |
+| **User Token** | OAuth flow via Account Server | User-facing applications |
 
-For most integrations, you'll use **App Tokens** obtained via client credentials. These tokens include your `org_id` for multi-tenant resource isolation.
+For most integrations, you'll use **App Tokens** obtained via client credentials. These tokens include your `org_id` for multi-tenant resource isolation. User tokens are not required for any Interactor API operations.
 
 ---
 
