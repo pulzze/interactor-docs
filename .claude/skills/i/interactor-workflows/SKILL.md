@@ -1852,6 +1852,113 @@ if (instance.status === 'halted') {
 
 ---
 
+## State-Level Authorization
+
+Control who can view, resume, or cancel instances based on the current state.
+
+### Tag-Based Authorization
+
+Match user permissions against required tags:
+
+```json
+{
+  "manager_approval": {
+    "type": "halting",
+    "authorization": {
+      "requires_any": ["manager", "admin"],
+      "requires_all": ["finance"],
+      "actions": ["resume"]
+    }
+  }
+}
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `requires_any` | string[] | User must have **at least one** of these tags |
+| `requires_all` | string[] | User must have **all** of these tags |
+| `actions` | string[] | Actions requiring auth: `view`, `resume`, `cancel` (default: all) |
+
+Pass permissions when calling the API:
+
+```typescript
+await client.post(`/api/v1/workflows/instances/${instanceId}/resume`, {
+  input: { approved: true },
+  permissions: ["manager", "finance"]
+});
+```
+
+### Callback-Based Authorization
+
+Delegate authorization decisions to your backend:
+
+```json
+{
+  "executive_approval": {
+    "type": "halting",
+    "authorization": {
+      "callback_url": "https://yourapp.com/api/workflow/authorize",
+      "cache_ttl_seconds": 300
+    }
+  }
+}
+```
+
+Interactor calls your endpoint with a signed POST:
+
+```http
+POST https://yourapp.com/api/workflow/authorize
+Content-Type: application/json
+X-Interactor-Signature: <hmac-sha256-hex>
+X-Interactor-Timestamp: <unix-seconds>
+
+{
+  "action": "resume",
+  "instance_id": "inst_xyz",
+  "workflow_id": "wf_abc",
+  "workflow_name": "purchase_approval",
+  "state": "executive_approval",
+  "user_ref": "user_123",
+  "context": {
+    "account_id": "acc_456",
+    "workflow_data": {...}
+  }
+}
+```
+
+Return your decision:
+
+```json
+{"authorized": true}
+// or
+{"authorized": false, "reason": "User not in executive group"}
+```
+
+### Signature Verification
+
+Verify callbacks using your `callback_secret`:
+
+```typescript
+import crypto from 'crypto';
+
+function verifySignature(body: string, signature: string, timestamp: string, secret: string): boolean {
+  const payload = `${timestamp}.${body}`;
+  const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+}
+```
+
+### Authorization Errors
+
+| Scenario | HTTP Status | Error Code | Description |
+|----------|-------------|------------|-------------|
+| Missing permissions | 403 | `forbidden` | User lacks required tags |
+| Callback denied | 403 | `forbidden` | Callback returned `authorized: false` |
+| Callback timeout | 403 | `forbidden` | Callback took > 5 seconds |
+| Callback error | 403 | `forbidden` | Callback returned non-200 status |
+
+---
+
 ## Error Handling
 
 ### Workflow-Specific Errors
@@ -1868,6 +1975,7 @@ Common workflow errors and their resolutions:
 | `invalid_transition` | 400 | Input doesn't match any condition | Check transition conditions |
 | `script_error` | 500 | Error executing workflow script | Check script syntax |
 | `http_error` | 500 | HTTP action failed | Check endpoint and auth |
+| `forbidden` | 403 | Insufficient permissions | Check user permissions for this state |
 
 > **See Also**: The [API Reference](#api-reference) section contains the complete canonical error table with all endpoint-specific error codes.
 

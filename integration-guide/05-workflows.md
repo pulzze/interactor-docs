@@ -843,6 +843,7 @@ See [JSONata documentation](https://jsonata.org) for the full expression languag
 | `validation_error` | Input doesn't match `input_schema` |
 | `INPUT_IMMUTABLE` | Cannot modify input values via set operation |
 | `INVALID_SET_PATH` | Set path must start with `data.` |
+| `forbidden` | Insufficient permissions for this state/action |
 
 ---
 
@@ -858,6 +859,136 @@ Subscribe to workflow events:
 | `workflow.instance.halted` | Instance waiting for input |
 
 See [Webhooks and Streaming](06-webhooks-and-streaming.md) for setup.
+
+---
+
+## State-Level Authorization
+
+Control who can view, resume, or cancel workflow instances based on the current state. Authorization is checked per-state, allowing different approval levels at different stages.
+
+### Tag-Based Authorization
+
+Match user permissions against required tags:
+
+```json
+{
+  "manager_approval": {
+    "type": "halting",
+    "authorization": {
+      "requires_any": ["manager", "admin"],
+      "requires_all": ["finance"],
+      "actions": ["resume"]
+    },
+    "presentation": {...}
+  }
+}
+```
+
+| Property | Description |
+|----------|-------------|
+| `requires_any` | User must have **at least one** of these tags |
+| `requires_all` | User must have **all** of these tags |
+| `actions` | Which actions require auth: `view`, `resume`, `cancel` (default: all) |
+
+Pass permissions when resuming:
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/workflows/instances/inst_xyz/resume \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": {"approved": true},
+    "permissions": ["manager", "finance"]
+  }'
+```
+
+### Callback-Based Authorization
+
+Delegate authorization to your backend:
+
+```json
+{
+  "executive_approval": {
+    "type": "halting",
+    "authorization": {
+      "callback_url": "https://yourapp.com/api/workflow/authorize",
+      "cache_ttl_seconds": 300
+    }
+  }
+}
+```
+
+Interactor calls your endpoint with a signed POST request:
+
+```http
+POST https://yourapp.com/api/workflow/authorize
+Content-Type: application/json
+X-Interactor-Signature: <hmac-sha256-hex>
+X-Interactor-Timestamp: <unix-seconds>
+
+{
+  "action": "resume",
+  "instance_id": "inst_xyz",
+  "workflow_id": "wf_abc",
+  "workflow_name": "purchase_approval",
+  "state": "executive_approval",
+  "user_ref": "user_123",
+  "context": {
+    "account_id": "acc_456",
+    "workflow_data": {...}
+  }
+}
+```
+
+Return your authorization decision:
+
+```json
+{"authorized": true}
+```
+
+Or deny with a reason:
+
+```json
+{"authorized": false, "reason": "User not in executive group"}
+```
+
+### Signature Verification
+
+Verify callback signatures using your `callback_secret`:
+
+```python
+import hmac
+import hashlib
+
+def verify_signature(body: bytes, signature: str, timestamp: str, secret: str) -> bool:
+    payload = f"{timestamp}.{body.decode()}"
+    expected = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(signature, expected)
+```
+
+### Error Responses
+
+Unauthorized requests return 403:
+
+```json
+{
+  "error": {
+    "code": "forbidden",
+    "message": "requires one of: manager, admin"
+  }
+}
+```
+
+### Fail-Closed Behavior
+
+Authorization fails closed for security:
+
+| Scenario | Result |
+|----------|--------|
+| No authorization config | Allow (backwards compatible) |
+| Callback timeout (5s) | Deny |
+| Callback error (5xx) | Deny |
+| Missing permissions | Deny |
 
 ---
 
