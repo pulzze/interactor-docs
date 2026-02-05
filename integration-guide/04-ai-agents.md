@@ -348,6 +348,41 @@ The workflow data will receive:
 {"baseline_ctr": 0.025, "total_impressions": 10000}
 ```
 
+### Retry Configuration (Optional)
+
+Tools can be configured to automatically retry on transient failures:
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/tools \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "submit_order",
+    "description": "Submit order to fulfillment system",
+    "parameters": {...},
+    "callback_url": "https://yourapp.com/api/tools/submit-order",
+    "retry_config": {
+      "enabled": true,
+      "max_attempts": 3,
+      "backoff_ms": [1000, 2000, 4000],
+      "retry_on": ["5xx", "timeout", "connection_error"]
+    }
+  }'
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | boolean | Enable/disable retry (default: false) |
+| `max_attempts` | integer | Maximum retry attempts (1-10, default: 3) |
+| `backoff_ms` | array | Delay between retries in ms (e.g., `[1000, 2000, 4000]`) |
+| `retry_on` | array | Error types to retry: `5xx`, `4xx`, `timeout`, `connection_error` |
+
+When retries are enabled, Interactor sends the same `x-idempotency-key` header across all retry attempts. Use this key to detect duplicate requests and ensure idempotent handling.
+
+**Circuit Breaker Protection**
+
+Interactor automatically tracks failures per callback URL domain. After 5 consecutive failures, the circuit opens and requests fail immediately with a `circuit_open` error. The circuit closes after 30 seconds if a test request succeeds.
+
 ### Tool Callback
 
 When the assistant invokes your tool, Interactor POSTs to your `callback_url` with these headers:
@@ -358,6 +393,7 @@ When the assistant invokes your tool, Interactor POSTs to your `callback_url` wi
 | `x-interactor-timestamp` | Unix timestamp when request was signed |
 | `x-interactor-tool` | Name of the tool being executed |
 | `x-interactor-account` | Your account ID |
+| `x-idempotency-key` | UUID for safe retries (same key used across retries) |
 
 **Request body:**
 ```json
