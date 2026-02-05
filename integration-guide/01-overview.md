@@ -1,7 +1,7 @@
 # Interactor Integration Guide: Overview
 
-**Version:** 2.0.0
-**Last Updated:** 2026-01-28
+**Version:** 2.1.0
+**Last Updated:** 2026-02-05
 
 ---
 
@@ -80,6 +80,7 @@ This integration guide is organized into the following sections:
 | [05-workflows.md](05-workflows.md) | State-machine workflows with human-in-the-loop |
 | [06-webhooks-and-streaming.md](06-webhooks-and-streaming.md) | Event subscriptions and real-time updates |
 | [07-sdk-examples.md](07-sdk-examples.md) | Complete code examples in TypeScript and Python |
+| [08-expressions.md](08-expressions.md) | JSONata expressions for data transformation and conditions |
 
 ---
 

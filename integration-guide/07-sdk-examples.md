@@ -1,6 +1,6 @@
 # SDK Examples
 
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-02-05
 
 Complete code examples for integrating with Interactor in TypeScript/Node.js and Python.
 
@@ -206,12 +206,13 @@ export class InteractorClient {
 
   // ============ Tools ============
 
+  // Note: callback_secret is configured at account level, not per-tool
+  // See: POST /api/v1/account/callback-secret or config sync
   async registerTool(tool: {
     name: string;
     description: string;
     parameters: any;
     callback_url: string;
-    callback_secret: string;
   }) {
     return this.request<{ id: string }>('POST', '/tools', tool);
   }
@@ -512,20 +513,20 @@ class InteractorClient:
 
     # ============ Tools ============
 
+    # Note: callback_secret is configured at account level, not per-tool
+    # See: POST /api/v1/account/callback-secret or config sync
     def register_tool(
         self,
         name: str,
         description: str,
         parameters: Dict,
-        callback_url: str,
-        callback_secret: str
+        callback_url: str
     ) -> Dict:
         return self._request('POST', '/tools', {
             'name': name,
             'description': description,
             'parameters': parameters,
-            'callback_url': callback_url,
-            'callback_secret': callback_secret
+            'callback_url': callback_url
         })
 
     def list_tools(self) -> List[Dict]:
@@ -641,17 +642,18 @@ app.post(
   express.raw({ type: 'application/json' }),
   (req, res) => {
     const signature = req.headers['x-interactor-signature'] as string;
+    const timestamp = req.headers['x-interactor-timestamp'] as string;
     const payload = req.body.toString();
 
-    // Verify signature
+    // Verify signature: HMAC-SHA256 of "timestamp.payload"
     const expected = crypto
       .createHmac('sha256', process.env.WEBHOOK_SECRET!)
-      .update(payload)
+      .update(`${timestamp}.${payload}`)
       .digest('hex');
 
     if (!crypto.timingSafeEqual(
       Buffer.from(signature),
-      Buffer.from(`sha256=${expected}`)
+      Buffer.from(expected)
     )) {
       return res.status(401).send('Invalid signature');
     }
@@ -660,15 +662,15 @@ app.post(
 
     // Handle different event types
     switch (event.type) {
-      case 'credential.created':
+      case 'credential.ready':
         console.log(`New credential: ${event.data.credential_id}`);
         break;
 
-      case 'workflow.instance.completed':
+      case 'workflow.completed':
         console.log(`Workflow completed: ${event.data.instance_id}`);
         break;
 
-      case 'agent.room.message':
+      case 'agent.message_received':
         console.log(`New message in room ${event.data.room_id}`);
         break;
     }
@@ -693,28 +695,30 @@ app = Flask(__name__)
 @app.route('/webhooks/interactor', methods=['POST'])
 def handle_webhook():
     signature = request.headers.get('X-Interactor-Signature', '')
+    timestamp = request.headers.get('X-Interactor-Timestamp', '')
     payload = request.get_data()
 
-    # Verify signature
+    # Verify signature: HMAC-SHA256 of "timestamp.payload"
+    message = f"{timestamp}.{payload.decode()}"
     expected = hmac.new(
         os.environ['WEBHOOK_SECRET'].encode(),
-        payload,
+        message.encode(),
         hashlib.sha256
     ).hexdigest()
 
-    if not hmac.compare_digest(signature, f'sha256={expected}'):
+    if not hmac.compare_digest(signature, expected):
         return 'Invalid signature', 401
 
     event = request.get_json()
 
     # Handle different event types
-    if event['type'] == 'credential.created':
+    if event['type'] == 'credential.ready':
         print(f"New credential: {event['data']['credential_id']}")
 
-    elif event['type'] == 'workflow.instance.completed':
+    elif event['type'] == 'workflow.completed':
         print(f"Workflow completed: {event['data']['instance_id']}")
 
-    elif event['type'] == 'agent.room.message':
+    elif event['type'] == 'agent.message_received':
         print(f"New message in room {event['data']['room_id']}")
 
     return 'OK', 200
@@ -740,7 +744,7 @@ interface Message {
 
 function ChatRoom({ roomId, token }: { roomId: string; token: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [streamingMessage, setStreamingMessage] = useState<string>('');
+  const [status, setStatus] = useState<string>('');
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -749,28 +753,54 @@ function ChatRoom({ roomId, token }: { roomId: string; token: string }) {
     );
     eventSourceRef.current = eventSource;
 
-    eventSource.addEventListener('message', (event) => {
+    // Connection established
+    eventSource.addEventListener('connected', (event) => {
       const data = JSON.parse(event.data);
-      setMessages((prev) => [...prev, data]);
+      console.log('Connected to room:', data.room_id);
     });
 
-    eventSource.addEventListener('message_start', () => {
-      setStreamingMessage('');
-    });
-
-    eventSource.addEventListener('message_delta', (event) => {
+    // User message received (for multi-client sync)
+    eventSource.addEventListener('agent.message_received', (event) => {
       const data = JSON.parse(event.data);
-      setStreamingMessage((prev) => prev + data.delta);
+      if (data.role === 'user') {
+        // Optionally refresh messages list
+      }
     });
 
-    eventSource.addEventListener('message_end', (event) => {
+    // Status updates (e.g., "Thinking...", "Searching...")
+    eventSource.addEventListener('agent.status', (event) => {
+      const data = JSON.parse(event.data);
+      setStatus(data.message);
+    });
+
+    // Assistant response ready (complete message, not streamed)
+    eventSource.addEventListener('agent.response_sent', (event) => {
       const data = JSON.parse(event.data);
       setMessages((prev) => [...prev, {
-        id: data.id,
+        id: data.message_id,
         role: 'assistant',
-        content: data.content
+        content: data.response
       }]);
-      setStreamingMessage('');
+      setStatus('');
+    });
+
+    // Error occurred
+    eventSource.addEventListener('agent.error', (event) => {
+      const data = JSON.parse(event.data);
+      console.error('Agent error:', data.message);
+      setStatus('');
+    });
+
+    // Keepalive ping
+    eventSource.addEventListener('ping', () => {
+      // Connection healthy
+    });
+
+    // Stream ending
+    eventSource.addEventListener('done', (event) => {
+      const data = JSON.parse(event.data);
+      console.log('Stream ended:', data.reason);
+      eventSource.close();
     });
 
     eventSource.onerror = () => {
@@ -789,9 +819,9 @@ function ChatRoom({ roomId, token }: { roomId: string; token: string }) {
           {msg.content}
         </div>
       ))}
-      {streamingMessage && (
-        <div className="assistant streaming">
-          {streamingMessage}
+      {status && (
+        <div className="status">
+          {status}
         </div>
       )}
     </div>

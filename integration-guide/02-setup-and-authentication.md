@@ -1,6 +1,6 @@
 # Setup and Authentication
 
-**Last Updated:** 2026-01-29
+**Last Updated:** 2026-02-05
 
 This guide covers account registration, OAuth client setup, and token management.
 
@@ -485,7 +485,7 @@ This allows the same config files to work across environments by setting differe
     "name": "approval-workflow",
     "description": "Multi-step approval process",
     "initial_state": "pending",
-    "parameters": {
+    "input_schema": {
       "type": "object",
       "properties": {
         "request_id": { "type": "string" },
@@ -503,7 +503,7 @@ This allows the same config files to work across environments by setting differe
 ]
 ```
 
-See [Workflows](05-workflows.md) for the full workflow specification format.
+The `input_schema` field defines a JSON Schema that validates input when creating workflow instances. See [Workflows](05-workflows.md) for the full workflow specification format.
 
 ### Data Source Configuration
 
