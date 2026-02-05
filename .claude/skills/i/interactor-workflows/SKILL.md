@@ -51,10 +51,9 @@ curl -X POST https://core.interactor.com/api/v1/workflows \
     "states": {
       "request": {
         "type": "action",
-        "logic": {
-          "type": "script",
-          "code": "return { request_id: input.id, amount: input.amount, status: \"pending\", submitted_at: new Date().toISOString() }"
-        },
+        "logic": [
+          { "type": "set", "values": { "request_id": "{{ data.id }}", "status": "pending", "submitted_at": "{{ $now() }}" } }
+        ],
         "transitions": [
           { "target": "await_approval" }
         ]
@@ -71,7 +70,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows \
           ]
         },
         "transitions": [
-          { "target": "approved", "condition": { "field": "approved", "equals": true } },
+          { "target": "approved", "condition": "data.approved" },
           { "target": "rejected" }
         ]
       },
@@ -81,7 +80,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows \
           "type": "http",
           "method": "POST",
           "url": "https://yourapp.com/api/webhooks/approval-complete",
-          "body": { "request_id": "${workflow_data.request_id}", "status": "approved" }
+          "body": { "request_id": "{{ data.request_id }}", "status": "approved" }
         }
       },
       "rejected": {
@@ -90,7 +89,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows \
           "type": "http",
           "method": "POST",
           "url": "https://yourapp.com/api/webhooks/approval-complete",
-          "body": { "request_id": "${workflow_data.request_id}", "status": "rejected" }
+          "body": { "request_id": "{{ data.request_id }}", "status": "rejected" }
         }
       }
     }
@@ -133,7 +132,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows/validate \
     "states": {
       "start": {
         "type": "action",
-        "logic": { "type": "script", "code": "return { message: \"Hello\" }" },
+        "logic": [{ "type": "set", "values": { "message": "Hello" } }],
         "transitions": [{ "target": "end" }]
       },
       "end": {
@@ -715,7 +714,7 @@ When a workflow halts, specify how to present the required input to users.
       "name": "amount",
       "type": "number",
       "label": "Approved Amount",
-      "default": "${workflow_data.amount}",
+      "default": "{{ data.amount }}",
       "min": 0,
       "max": 100000
     },
@@ -803,21 +802,22 @@ When a workflow halts, specify how to present the required input to users.
 
 ## Workflow Logic
 
-### Script Logic
+### Set Logic
 
-Execute JavaScript code in action states:
+Set values in workflow data using template expressions:
 
 ```json
 {
-  "type": "script",
-  "code": "const total = input.items.reduce((sum, item) => sum + item.price, 0); const needsApproval = total > 1000; return { ...workflow_data, total, needs_approval: needsApproval, calculated_at: new Date().toISOString() };"
+  "type": "set",
+  "values": {
+    "total": "{{ $sum(data.items.price) }}",
+    "needs_approval": "{{ $sum(data.items.price) > 1000 }}",
+    "calculated_at": "{{ $now() }}"
+  }
 }
 ```
 
-**Available Variables:**
-- `input` - The input provided when starting or resuming the workflow
-- `workflow_data` - Current accumulated workflow data
-- `context` - Additional context (namespace, instance_id, etc.)
+Template expressions use `{{ }}` delimiters with `data` (workflow data) and `parameters` (workflow parameters) as sources. Simple dot-paths are resolved instantly; complex expressions use JSONata.
 
 ### HTTP Logic
 
@@ -829,13 +829,13 @@ Make external API calls:
   "method": "POST",
   "url": "https://api.yourservice.com/process",
   "headers": {
-    "Authorization": "Bearer ${secrets.API_KEY}",
+    "Authorization": "Bearer {{ parameters.api_key }}",
     "Content-Type": "application/json"
   },
   "body": {
-    "order_id": "${workflow_data.order_id}",
-    "amount": "${workflow_data.amount}",
-    "customer_email": "${workflow_data.customer_email}"
+    "order_id": "{{ data.order_id }}",
+    "amount": "{{ data.amount }}",
+    "customer_email": "{{ data.customer_email }}"
   },
   "timeout": 30000,
   "retry": {
@@ -849,26 +849,18 @@ Make external API calls:
 
 ### Transition Conditions
 
-Define conditions for state transitions:
+Conditions use JSONata expressions to control state transitions. Transitions are evaluated in order — the first matching condition wins:
 
 ```json
 {
   "transitions": [
     {
       "target": "high_value_approval",
-      "condition": {
-        "field": "amount",
-        "operator": "gt",
-        "value": 10000
-      }
+      "condition": "data.amount > 10000"
     },
     {
       "target": "manager_approval",
-      "condition": {
-        "field": "amount",
-        "operator": "gt",
-        "value": 1000
-      }
+      "condition": "data.amount > 1000"
     },
     {
       "target": "auto_approve"
@@ -877,48 +869,34 @@ Define conditions for state transitions:
 }
 ```
 
-**Operators:**
+A transition without a `condition` always matches (use as a default/fallback).
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `equals` | Exact match | `{ "field": "status", "equals": "approved" }` |
-| `not_equals` | Not equal | `{ "field": "status", "not_equals": "rejected" }` |
-| `gt` | Greater than | `{ "field": "amount", "operator": "gt", "value": 1000 }` |
-| `gte` | Greater than or equal | `{ "field": "amount", "operator": "gte", "value": 1000 }` |
-| `lt` | Less than | `{ "field": "amount", "operator": "lt", "value": 100 }` |
-| `lte` | Less than or equal | `{ "field": "amount", "operator": "lte", "value": 100 }` |
-| `contains` | String contains | `{ "field": "email", "operator": "contains", "value": "@company.com" }` |
-| `in` | Value in array | `{ "field": "category", "operator": "in", "value": ["A", "B", "C"] }` |
+**Common patterns:**
+
+| Pattern | Example |
+|---------|---------|
+| Equality | `"data.status = 'approved'"` |
+| Not equal | `"data.status != 'rejected'"` |
+| Greater than | `"data.amount > 1000"` |
+| Less than or equal | `"data.amount <= 1000"` |
+| String contains | `"$contains(data.email, '@company.com')"` |
+| Value in set | `"data.category in ['A', 'B', 'C']"` |
+| Boolean field | `"data.approved"` |
 
 ### Complex Conditions
 
-Use `and` / `or` for complex conditions:
+Use `and` / `or` operators for complex conditions:
 
 ```json
 {
   "transitions": [
     {
       "target": "vp_approval",
-      "condition": {
-        "and": [
-          { "field": "approved", "equals": true },
-          { "field": "amount", "operator": "gt", "value": 10000 }
-        ]
-      }
+      "condition": "data.approved and data.amount > 10000"
     },
     {
       "target": "approved",
-      "condition": {
-        "or": [
-          { "field": "amount", "operator": "lte", "value": 1000 },
-          {
-            "and": [
-              { "field": "approved", "equals": true },
-              { "field": "amount", "operator": "lte", "value": 10000 }
-            ]
-          }
-        ]
-      }
+      "condition": "data.amount <= 1000 or (data.approved and data.amount <= 10000)"
     },
     {
       "target": "rejected"
@@ -939,19 +917,12 @@ Use `and` / `or` for complex conditions:
   "states": {
     "submit": {
       "type": "action",
-      "logic": {
-        "type": "script",
-        "code": "return { ...input, submitted_at: new Date().toISOString(), status: 'pending' }"
-      },
+      "logic": [
+        { "type": "set", "values": { "submitted_at": "{{ $now() }}", "status": "pending" } }
+      ],
       "transitions": [
-        {
-          "target": "auto_approved",
-          "condition": { "field": "amount", "operator": "lte", "value": 1000 }
-        },
-        {
-          "target": "manager_approval",
-          "condition": { "field": "amount", "operator": "lte", "value": 10000 }
-        },
+        { "target": "auto_approved", "condition": "data.amount <= 1000" },
+        { "target": "manager_approval", "condition": "data.amount <= 10000" },
         { "target": "manager_approval" }
       ]
     },
@@ -961,26 +932,15 @@ Use `and` / `or` for complex conditions:
       "presentation": {
         "type": "form",
         "title": "Manager Approval Required",
-        "description": "Purchase request for ${workflow_data.description} - $${workflow_data.amount}",
+        "description": "Purchase request for {{ data.description }} - ${{ data.amount }}",
         "fields": [
           { "name": "approved", "type": "boolean", "label": "Approve?", "required": true },
           { "name": "comment", "type": "string", "label": "Comment", "multiline": true }
         ]
       },
       "transitions": [
-        {
-          "target": "vp_approval",
-          "condition": {
-            "and": [
-              { "field": "approved", "equals": true },
-              { "field": "amount", "operator": "gt", "value": 10000 }
-            ]
-          }
-        },
-        {
-          "target": "approved",
-          "condition": { "field": "approved", "equals": true }
-        },
+        { "target": "vp_approval", "condition": "data.approved and data.amount > 10000" },
+        { "target": "approved", "condition": "data.approved" },
         { "target": "rejected" }
       ]
     },
@@ -990,7 +950,7 @@ Use `and` / `or` for complex conditions:
       "presentation": {
         "type": "form",
         "title": "VP Approval Required",
-        "description": "High-value purchase: ${workflow_data.description} - $${workflow_data.amount}",
+        "description": "High-value purchase: {{ data.description }} - ${{ data.amount }}",
         "fields": [
           { "name": "approved", "type": "boolean", "label": "VP Approval", "required": true },
           { "name": "budget_code", "type": "string", "label": "Budget Code" },
@@ -998,20 +958,16 @@ Use `and` / `or` for complex conditions:
         ]
       },
       "transitions": [
-        {
-          "target": "approved",
-          "condition": { "field": "approved", "equals": true }
-        },
+        { "target": "approved", "condition": "data.approved" },
         { "target": "rejected" }
       ]
     },
 
     "auto_approved": {
       "type": "action",
-      "logic": {
-        "type": "script",
-        "code": "return { ...workflow_data, status: 'approved', approved_by: 'auto', approved_at: new Date().toISOString() }"
-      },
+      "logic": [
+        { "type": "set", "values": { "status": "approved", "approved_by": "auto", "approved_at": "{{ $now() }}" } }
+      ],
       "transitions": [
         { "target": "notify_requester" }
       ]
@@ -1019,10 +975,9 @@ Use `and` / `or` for complex conditions:
 
     "approved": {
       "type": "action",
-      "logic": {
-        "type": "script",
-        "code": "return { ...workflow_data, status: 'approved', approved_at: new Date().toISOString() }"
-      },
+      "logic": [
+        { "type": "set", "values": { "status": "approved", "approved_at": "{{ $now() }}" } }
+      ],
       "transitions": [
         { "target": "notify_requester" }
       ]
@@ -1030,10 +985,9 @@ Use `and` / `or` for complex conditions:
 
     "rejected": {
       "type": "action",
-      "logic": {
-        "type": "script",
-        "code": "return { ...workflow_data, status: 'rejected', rejected_at: new Date().toISOString() }"
-      },
+      "logic": [
+        { "type": "set", "values": { "status": "rejected", "rejected_at": "{{ $now() }}" } }
+      ],
       "transitions": [
         { "target": "notify_requester" }
       ]
@@ -1047,9 +1001,9 @@ Use `and` / `or` for complex conditions:
         "url": "https://yourapp.com/api/notifications",
         "body": {
           "type": "purchase_decision",
-          "email": "${workflow_data.requester}",
-          "status": "${workflow_data.status}",
-          "amount": "${workflow_data.amount}"
+          "email": "{{ data.requester }}",
+          "status": "{{ data.status }}",
+          "amount": "{{ data.amount }}"
         }
       },
       "transitions": [
@@ -2278,66 +2232,16 @@ X-RateLimit-Reset: 1705752060
 
 ---
 
-## Script Execution Environment
+## Script Step (Deprecated)
 
-### Runtime Specification
+> **Note**: The `script` step type is deprecated. Use `set` steps with template expressions for data transformation, `http` steps for external API calls, and `tool` steps for executing external scripts via Knowledge Base services.
 
-| Property | Value |
-|----------|-------|
-| Runtime | JavaScript (ES2020) |
-| Engine | QuickJS sandbox |
-| Execution timeout | 5 seconds |
-| Memory limit | 16 MB |
-| Network access | **Disabled** (use HTTP logic instead) |
-
-### Available Globals
-
-```javascript
-// Available in script context
-input          // Object: Input from create/resume call
-workflow_data  // Object: Accumulated workflow data
-context        // Object: { namespace, instance_id, workflow_name, state_name }
-
-// Standard JavaScript
-JSON           // JSON.parse, JSON.stringify
-Date           // Date constructor and methods
-Math           // Math utilities
-console        // console.log (for debugging, logged to instance history)
-Array          // Array methods
-Object         // Object methods
-String         // String methods
-Number         // Number methods
-Boolean        // Boolean type
-RegExp         // Regular expressions
-
-// NOT available (for security)
-fetch          // Use HTTP logic instead
-require        // No module imports
-eval           // Disabled
-Function       // Constructor disabled
-setTimeout     // Async not supported
-setInterval    // Async not supported
-```
-
-### Accessing Secrets in Scripts
-
-Secrets are accessed via the `secrets` object (read-only):
-
-```javascript
-// In script logic
-const apiKey = secrets.MY_API_KEY;
-return { ...workflow_data, api_key_present: !!apiKey };
-```
-
-> **Security**: Secrets are injected at runtime and never logged. Use HTTP logic for external calls requiring secrets.
-
-### Script Best Practices
-
-- Keep scripts simple and fast (<100ms recommended)
-- Avoid loops over large datasets
-- Delegate heavy computation to HTTP endpoints
-- Use `console.log` sparingly (logs are stored in instance history)
-- Return plain objects (no functions or circular references)
+| Replacement | Use Case |
+|-------------|----------|
+| `set` step | Set or compute workflow data values using `{{ }}` template expressions |
+| `http` step | Make external API calls |
+| `tool` step | Execute capabilities from Knowledge Base services |
+| `ai` step | Generate text or make decisions using LLM |
 
 ---
 
@@ -2992,49 +2896,8 @@ function ApprovalPage({ instanceId }: { instanceId: string }) {
       }
     },
     "condition": {
-      "type": "object",
-      "oneOf": [
-        {
-          "properties": {
-            "field": { "type": "string" },
-            "equals": {}
-          },
-          "required": ["field", "equals"]
-        },
-        {
-          "properties": {
-            "field": { "type": "string" },
-            "not_equals": {}
-          },
-          "required": ["field", "not_equals"]
-        },
-        {
-          "properties": {
-            "field": { "type": "string" },
-            "operator": { "enum": ["gt", "gte", "lt", "lte", "contains", "in"] },
-            "value": {}
-          },
-          "required": ["field", "operator", "value"]
-        },
-        {
-          "properties": {
-            "and": {
-              "type": "array",
-              "items": { "$ref": "#/$defs/condition" }
-            }
-          },
-          "required": ["and"]
-        },
-        {
-          "properties": {
-            "or": {
-              "type": "array",
-              "items": { "$ref": "#/$defs/condition" }
-            }
-          },
-          "required": ["or"]
-        }
-      ]
+      "type": "string",
+      "description": "JSONata expression that evaluates to a boolean. Examples: 'data.approved', 'data.amount > 1000', 'data.approved and data.amount > 10000'"
     }
   }
 }

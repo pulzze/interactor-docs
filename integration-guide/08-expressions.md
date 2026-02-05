@@ -11,15 +11,106 @@ Interactor uses **JSONata** as its expression language for data transformation a
 
 ### Where Expressions Are Used
 
-| Context | Purpose | Example |
-|---------|---------|---------|
-| Tool `input_mapping` | Transform workflow data before calling a tool | `{ "total": $sum(data.items.price) }` |
-| Tool `output_mapping` | Transform tool response before storing | `{ "user_id": response.data.id }` |
-| Workflow conditions | Control workflow transitions | `data.amount > 10000` |
+| Context | Syntax | Purpose | Example |
+|---------|--------|---------|---------|
+| Step configurations | `{{ expression }}` | Inject data into URLs, headers, bodies, prompts | `"{{ data.user.email }}"` |
+| Tool `input_mapping` | Bare JSONata | Transform workflow data before calling a tool | `$sum(data.items.price)` |
+| Tool `output_mapping` | Bare JSONata | Transform tool response before storing | `response.data.id` |
+| Workflow conditions | Bare JSONata | Control workflow transitions | `data.amount > 10000` |
+
+Interactor uses expressions in two forms:
+- **Template expressions** (`{{ }}`) — embedded in step configuration strings (URLs, headers, bodies, prompts). Simple dot-paths are resolved instantly; complex expressions use JSONata.
+- **Bare JSONata** — used directly in tool mappings and workflow conditions.
+
+Both forms use the same JSONata language for complex expressions.
 
 ---
 
-## Quick Reference
+## Template Expressions
+
+Step configurations (HTTP steps, AI steps, agent steps, etc.) use `{{ }}` delimiters to inject dynamic values into strings:
+
+```json
+{
+  "type": "http",
+  "config": {
+    "url": "https://api.example.com/users/{{ data.user_id }}",
+    "headers": {
+      "Authorization": "Bearer {{ parameters.api_key }}"
+    },
+    "body": {
+      "name": "{{ data.user.name }}",
+      "count": "{{ data.item_count }}"
+    }
+  }
+}
+```
+
+### Available Sources
+
+| Source | Description | Example |
+|--------|-------------|---------|
+| `data` | Current workflow data | `{{ data.user.name }}` |
+| `parameters` | Workflow parameters | `{{ parameters.api_key }}` |
+
+### Type Preservation
+
+When the entire string is a single expression, the raw typed value is returned:
+
+```json
+{
+  "count": "{{ data.item_count }}",
+  "user": "{{ data.user_profile }}",
+  "tags": "{{ data.tag_list }}"
+}
+```
+
+Resolves to:
+```json
+{
+  "count": 42,
+  "user": {"name": "Alice", "email": "alice@example.com"},
+  "tags": ["billing", "priority"]
+}
+```
+
+When an expression is embedded in surrounding text, values are coerced to strings:
+
+```json
+{
+  "message": "Hello {{ data.name }}, you have {{ data.count }} items"
+}
+```
+
+Resolves to:
+```json
+{
+  "message": "Hello Alice, you have 42 items"
+}
+```
+
+### Simple vs Complex Expressions
+
+**Simple dot-path expressions** (e.g., `{{ data.user.name }}`) are resolved instantly via direct lookup with no overhead.
+
+**Complex expressions** containing array access, filters, functions, or operators are evaluated via JSONata:
+
+```json
+{
+  "first_item": "{{ data.items[0].name }}",
+  "active_count": "{{ $count(data.items[active = true]) }}",
+  "total": "{{ $sum(data.items.price) }}",
+  "is_high_value": "{{ data.amount > parameters.threshold }}"
+}
+```
+
+Any valid JSONata expression can be used inside `{{ }}` delimiters.
+
+---
+
+## Bare JSONata Expressions
+
+Tool mappings and workflow conditions use JSONata expressions directly, without `{{ }}` delimiters.
 
 ### Data Access
 

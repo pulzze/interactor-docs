@@ -32,10 +32,9 @@ curl -X POST https://core.interactor.com/api/v1/workflows \
     "states": {
       "request": {
         "type": "action",
-        "logic": {
-          "type": "script",
-          "code": "return {request_id: input.id, status: \"pending\"}"
-        },
+        "logic": [
+          {"type": "set", "values": {"request_id": "{{ data.id }}", "status": "pending"}}
+        ],
         "transitions": [{"target": "await_approval"}]
       },
       "await_approval": {
@@ -48,7 +47,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows \
           ]
         },
         "transitions": [
-          {"target": "approved", "condition": {"field": "approved", "equals": true}},
+          {"target": "approved", "condition": "data.approved"},
           {"target": "rejected"}
         ]
       },
@@ -96,7 +95,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows/validate \
     "states": {
       "start": {
         "type": "action",
-        "logic": {"type": "script", "code": "return {message: \"Hello\"}"},
+        "logic": [{"type": "set", "values": {"message": "Hello"}}],
         "transitions": [{"target": "end"}]
       },
       "end": {
@@ -564,14 +563,17 @@ For backward compatibility, form-style presentations are still supported:
 
 ## Workflow Logic
 
-### Script Logic
+### Set Logic
 
-Execute JavaScript code:
+Set values in workflow data:
 
 ```json
 {
-  "type": "script",
-  "code": "const total = input.items.reduce((sum, i) => sum + i.price, 0); return { total, approved: total < 1000 };"
+  "type": "set",
+  "values": {
+    "total": "{{ $sum(data.items.price) }}",
+    "approved": "{{ $sum(data.items.price) < 1000 }}"
+  }
 }
 ```
 
@@ -585,34 +587,39 @@ Make external API calls:
   "method": "POST",
   "url": "https://api.yourservice.com/process",
   "headers": {
-    "Authorization": "Bearer ${secrets.API_KEY}"
+    "Authorization": "Bearer {{ parameters.api_key }}",
+    "Content-Type": "application/json"
   },
   "body": {
-    "order_id": "${workflow_data.order_id}"
+    "order_id": "{{ data.order_id }}"
   }
 }
 ```
 
-### Condition Logic
+Template expressions use `{{ }}` delimiters to reference workflow data and parameters. See [Expressions](08-expressions.md) for the full expression language.
 
-Transition conditions:
+### Transition Conditions
+
+Conditions use JSONata expressions to control state transitions:
 
 ```json
 {
   "transitions": [
     {
       "target": "high_value_approval",
-      "condition": {"field": "amount", "operator": "gt", "value": 10000}
+      "condition": "data.amount > 10000"
     },
     {
       "target": "auto_approve",
-      "condition": {"field": "amount", "operator": "lte", "value": 10000}
+      "condition": "data.amount <= 10000"
     }
   ]
 }
 ```
 
-**Operators:** `equals`, `not_equals`, `gt`, `gte`, `lt`, `lte`, `contains`, `in`
+Transitions are evaluated in order. The first matching condition wins. A transition without a `condition` always matches (use as a default/fallback).
+
+See [Expressions](08-expressions.md) for the full expression language.
 
 ---
 
@@ -695,12 +702,11 @@ See [JSONata documentation](https://jsonata.org) for the full expression languag
   "states": {
     "submit": {
       "type": "action",
-      "logic": {
-        "type": "script",
-        "code": "return { ...input, submitted_at: new Date().toISOString() }"
-      },
+      "logic": [
+        {"type": "set", "values": {"submitted_at": "{{ $now() }}"}}
+      ],
       "transitions": [
-        {"target": "manager_approval", "condition": {"field": "amount", "operator": "gt", "value": 1000}},
+        {"target": "manager_approval", "condition": "data.amount > 1000"},
         {"target": "approved"}
       ]
     },
@@ -714,11 +720,8 @@ See [JSONata documentation](https://jsonata.org) for the full expression languag
         ]
       },
       "transitions": [
-        {"target": "vp_approval", "condition": {"and": [
-          {"field": "approved", "equals": true},
-          {"field": "amount", "operator": "gt", "value": 10000}
-        ]}},
-        {"target": "approved", "condition": {"field": "approved", "equals": true}},
+        {"target": "vp_approval", "condition": "data.approved and data.amount > 10000"},
+        {"target": "approved", "condition": "data.approved"},
         {"target": "rejected"}
       ]
     },
@@ -732,7 +735,7 @@ See [JSONata documentation](https://jsonata.org) for the full expression languag
         ]
       },
       "transitions": [
-        {"target": "approved", "condition": {"field": "approved", "equals": true}},
+        {"target": "approved", "condition": "data.approved"},
         {"target": "rejected"}
       ]
     },
@@ -756,7 +759,7 @@ See [JSONata documentation](https://jsonata.org) for the full expression languag
 | `workflow_not_published` | Workflow version not published |
 | `instance_not_halted` | Cannot resume - instance not in halted state |
 | `invalid_transition` | Input doesn't match any transition condition |
-| `script_error` | Error executing workflow script |
+| `step_error` | Error executing workflow step |
 | `instance_not_found` | Workflow instance doesn't exist |
 | `invalid_cursor` | Pagination cursor is malformed or expired |
 | `missing_parameter` | Required parameter not provided |
