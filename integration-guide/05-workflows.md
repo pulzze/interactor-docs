@@ -1,6 +1,6 @@
 # Workflows
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-05
 
 Workflows are state-machine based automations with human-in-the-loop support. Use them to model multi-step business processes that may require approvals, user input, or external integrations.
 
@@ -17,6 +17,58 @@ Workflows consist of:
 
 ---
 
+## Data Model
+
+Workflows have a clear separation between input and runtime data:
+
+| Concept | Access Pattern | Description |
+|---------|----------------|-------------|
+| `input` | `{{ input.order_id }}` | Immutable values passed at instance creation |
+| `data` | `{{ data.status }}` | Mutable runtime data accumulated during execution |
+
+### Input vs Data
+
+- **`input`** - Values provided when creating an instance. These are immutable and cannot be modified by workflow steps.
+- **`data`** - Runtime state that accumulates as the workflow executes. Steps can read and write to `data`.
+
+### Input Schema
+
+Workflows can define an `input_schema` (JSON Schema) to validate input at instance creation:
+
+```json
+{
+  "name": "approval_workflow",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "order_id": { "type": "string" },
+      "amount": { "type": "number", "minimum": 0 }
+    },
+    "required": ["order_id", "amount"]
+  },
+  "initial_state": "review",
+  "states": { ... }
+}
+```
+
+### Setting Data
+
+Use the `set` step with explicit `data.` prefix:
+
+```json
+{
+  "type": "set",
+  "values": {
+    "data.status": "processing",
+    "data.requires_approval": "{{ input.amount > 10000 }}"
+  }
+}
+```
+
+Attempting to write to `input` returns an `INPUT_IMMUTABLE` error.
+
+---
+
 ## Workflow Definition
 
 ### Create a Workflow
@@ -29,11 +81,20 @@ curl -X POST https://core.interactor.com/api/v1/workflows \
     "name": "approval_workflow",
     "initial_state": "request",
     "ai_guidance": "This workflow handles approval requests",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "amount": { "type": "number" },
+        "requester": { "type": "string", "format": "email" }
+      },
+      "required": ["id", "amount"]
+    },
     "states": {
       "request": {
         "type": "action",
         "logic": [
-          {"type": "set", "values": {"request_id": "{{ data.id }}", "status": "pending"}}
+          {"type": "set", "values": {"data.request_id": "{{ input.id }}", "data.status": "pending"}}
         ],
         "transitions": [{"target": "await_approval"}]
       },
@@ -95,7 +156,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows/validate \
     "states": {
       "start": {
         "type": "action",
-        "logic": [{"type": "set", "values": {"message": "Hello"}}],
+        "logic": [{"type": "set", "values": {"data.message": "Hello"}}],
         "transitions": [{"target": "end"}]
       },
       "end": {
@@ -195,7 +256,12 @@ curl https://core.interactor.com/api/v1/workflows/instances/inst_xyz \
     "workflow_name": "approval_workflow",
     "status": "halted",
     "current_state": "await_approval",
-    "workflow_data": {
+    "input": {
+      "id": "req_456",
+      "amount": 5000,
+      "requester": "john@example.com"
+    },
+    "data": {
       "request_id": "req_456",
       "status": "pending"
     },
@@ -565,17 +631,19 @@ For backward compatibility, form-style presentations are still supported:
 
 ### Set Logic
 
-Set values in workflow data:
+Set values in workflow data using the `data.` prefix:
 
 ```json
 {
   "type": "set",
   "values": {
-    "total": "{{ $sum(data.items.price) }}",
-    "approved": "{{ $sum(data.items.price) < 1000 }}"
+    "data.total": "{{ $sum(data.items.price) }}",
+    "data.approved": "{{ $sum(data.items.price) < 1000 }}"
   }
 }
 ```
+
+**Note:** All set paths must start with `data.`. Attempting to set `input.*` returns `INPUT_IMMUTABLE` error.
 
 ### HTTP Logic
 
@@ -585,33 +653,34 @@ Make external API calls:
 {
   "type": "http",
   "method": "POST",
-  "url": "https://api.yourservice.com/process",
+  "url": "https://api.yourservice.com/orders/{{ input.order_id }}",
   "headers": {
-    "Authorization": "Bearer {{ parameters.api_key }}",
+    "Authorization": "Bearer {{ input.api_key }}",
     "Content-Type": "application/json"
   },
   "body": {
-    "order_id": "{{ data.order_id }}"
+    "status": "{{ data.status }}",
+    "processed_at": "{{ data.processed_at }}"
   }
 }
 ```
 
-Template expressions use `{{ }}` delimiters to reference workflow data and parameters. See [Expressions](08-expressions.md) for the full expression language.
+Template expressions use `{{ }}` delimiters to reference `input` (immutable) and `data` (runtime state). See [Expressions](08-expressions.md) for the full expression language.
 
 ### Transition Conditions
 
-Conditions use JSONata expressions to control state transitions:
+Conditions use JSONata expressions to control state transitions. You can reference both `input` (immutable) and `data` (runtime):
 
 ```json
 {
   "transitions": [
     {
       "target": "high_value_approval",
-      "condition": "data.amount > 10000"
+      "condition": "input.amount > 10000"
     },
     {
       "target": "auto_approve",
-      "condition": "data.amount <= 10000"
+      "condition": "input.amount <= 10000"
     }
   ]
 }
@@ -699,14 +768,23 @@ See [JSONata documentation](https://jsonata.org) for the full expression languag
 {
   "name": "purchase_approval",
   "initial_state": "submit",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "purchase_id": { "type": "string" },
+      "amount": { "type": "number", "minimum": 0 },
+      "description": { "type": "string" }
+    },
+    "required": ["purchase_id", "amount"]
+  },
   "states": {
     "submit": {
       "type": "action",
       "logic": [
-        {"type": "set", "values": {"submitted_at": "{{ $now() }}"}}
+        {"type": "set", "values": {"data.submitted_at": "{{ $now() }}"}}
       ],
       "transitions": [
-        {"target": "manager_approval", "condition": "data.amount > 1000"},
+        {"target": "manager_approval", "condition": "input.amount > 1000"},
         {"target": "approved"}
       ]
     },
@@ -720,7 +798,7 @@ See [JSONata documentation](https://jsonata.org) for the full expression languag
         ]
       },
       "transitions": [
-        {"target": "vp_approval", "condition": "data.approved and data.amount > 10000"},
+        {"target": "vp_approval", "condition": "data.approved and input.amount > 10000"},
         {"target": "approved", "condition": "data.approved"},
         {"target": "rejected"}
       ]
@@ -762,7 +840,9 @@ See [JSONata documentation](https://jsonata.org) for the full expression languag
 | `step_error` | Error executing workflow step |
 | `instance_not_found` | Workflow instance doesn't exist |
 | `invalid_cursor` | Pagination cursor is malformed or expired |
-| `missing_parameter` | Required parameter not provided |
+| `validation_error` | Input doesn't match `input_schema` |
+| `INPUT_IMMUTABLE` | Cannot modify input values via set operation |
+| `INVALID_SET_PATH` | Set path must start with `data.` |
 
 ---
 

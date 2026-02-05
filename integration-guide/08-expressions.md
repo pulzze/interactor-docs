@@ -1,7 +1,7 @@
 # Expressions
 
 **Version:** 1.0.0
-**Last Updated:** 2026-02-04
+**Last Updated:** 2026-02-05
 
 ---
 
@@ -13,10 +13,10 @@ Interactor uses **JSONata** as its expression language for data transformation a
 
 | Context | Syntax | Purpose | Example |
 |---------|--------|---------|---------|
-| Step configurations | `{{ expression }}` | Inject data into URLs, headers, bodies, prompts | `"{{ data.user.email }}"` |
+| Step configurations | `{{ expression }}` | Inject data into URLs, headers, bodies, prompts | `"{{ input.user_id }}"` |
 | Tool `input_mapping` | Bare JSONata | Transform workflow data before calling a tool | `$sum(data.items.price)` |
 | Tool `output_mapping` | Bare JSONata | Transform tool response before storing | `response.data.id` |
-| Workflow conditions | Bare JSONata | Control workflow transitions | `data.amount > 10000` |
+| Workflow conditions | Bare JSONata | Control workflow transitions | `input.amount > 10000` |
 
 Interactor uses expressions in two forms:
 - **Template expressions** (`{{ }}`) — embedded in step configuration strings (URLs, headers, bodies, prompts). Simple dot-paths are resolved instantly; complex expressions use JSONata.
@@ -34,9 +34,9 @@ Step configurations (HTTP steps, AI steps, agent steps, etc.) use `{{ }}` delimi
 {
   "type": "http",
   "config": {
-    "url": "https://api.example.com/users/{{ data.user_id }}",
+    "url": "https://api.example.com/users/{{ input.user_id }}",
     "headers": {
-      "Authorization": "Bearer {{ parameters.api_key }}"
+      "Authorization": "Bearer {{ input.api_key }}"
     },
     "body": {
       "name": "{{ data.user.name }}",
@@ -48,10 +48,12 @@ Step configurations (HTTP steps, AI steps, agent steps, etc.) use `{{ }}` delimi
 
 ### Available Sources
 
-| Source | Description | Example |
-|--------|-------------|---------|
-| `data` | Current workflow data | `{{ data.user.name }}` |
-| `parameters` | Workflow parameters | `{{ parameters.api_key }}` |
+| Source | Description | Mutability | Example |
+|--------|-------------|------------|---------|
+| `input` | Values passed at instance creation | Immutable | `{{ input.order_id }}` |
+| `data` | Runtime workflow data | Mutable | `{{ data.status }}` |
+
+**Note:** `input` values cannot be modified by workflow steps. Use `data` for values that change during execution.
 
 ### Type Preservation
 
@@ -100,7 +102,7 @@ Resolves to:
   "first_item": "{{ data.items[0].name }}",
   "active_count": "{{ $count(data.items[active = true]) }}",
   "total": "{{ $sum(data.items.price) }}",
-  "is_high_value": "{{ data.amount > parameters.threshold }}"
+  "is_high_value": "{{ input.amount > input.threshold }}"
 }
 ```
 
@@ -201,7 +203,7 @@ Extract and transform tool response:
 
 ### Workflow Conditions
 
-Control state transitions:
+Control state transitions using `input` (immutable) and `data` (runtime):
 
 ```json
 {
@@ -211,15 +213,15 @@ Control state transitions:
       "transitions": [
         {
           "to": "high_value_approval",
-          "condition": "data.amount > 50000"
+          "condition": "input.amount > 50000"
         },
         {
           "to": "manager_approval",
-          "condition": "data.amount > 10000 and data.amount <= 50000"
+          "condition": "input.amount > 10000 and input.amount <= 50000"
         },
         {
           "to": "auto_approve",
-          "condition": "data.amount <= 10000"
+          "condition": "input.amount <= 10000"
         }
       ]
     }
@@ -255,22 +257,22 @@ $sum(data.items[category = 'electronics'].price)
 
 Expressions have access to the following context variables depending on where they're used:
 
+### In Workflow Steps and Conditions
+
+| Variable | Description | Mutability |
+|----------|-------------|------------|
+| `input` | Values passed at instance creation | Immutable |
+| `data` | Runtime workflow data | Mutable |
+| `instance` | Instance metadata (id, workflow_name, current_state) | Read-only |
+| `thread` | Thread metadata (id) | Read-only |
+
 ### In Tool Mappings
 
 | Variable | Description |
 |----------|-------------|
+| `input` | Workflow instance input |
 | `data` | Current workflow data |
-| `parameters` | Workflow parameters |
 | `response` | Tool response (in output_mapping only) |
-
-### In Workflow Conditions
-
-| Variable | Description |
-|----------|-------------|
-| `data` | Current workflow data |
-| `parameters` | Workflow parameters |
-| `instance` | Workflow instance metadata (id, workflow_name, current_state) |
-| `thread` | Thread metadata (id) |
 
 ---
 
@@ -356,6 +358,54 @@ JSONata expressions are safe by design:
 | Max execution time | 100ms |
 | Max output size | 1MB |
 | Max recursion depth | 100 |
+
+---
+
+## Error Handling
+
+### Undefined Variables
+
+Accessing undefined variables returns `null` (standard JSONata behavior):
+
+```jsonata
+input.nonexistent           // Returns null
+input.user.missing.deeply   // Returns null (no error)
+data.items[99]              // Returns null if index out of bounds
+```
+
+This means expressions won't fail on missing data, but you may get unexpected `null` values.
+
+### Defensive Patterns
+
+Use these patterns to handle potentially missing data:
+
+```jsonata
+// Default values with null coalescing
+input.count ?? 0                           // Use 0 if count is null/undefined
+input.name ?? "Unknown"                    // Use default string
+
+// Conditional checks
+input.items ? $sum(input.items.price) : 0  // Check before aggregating
+data.user ? data.user.email : null         // Safe property access
+
+// Type checking
+$type(input.value) = 'number'              // Verify type before operations
+```
+
+### Expression Errors in Workflows
+
+When an expression fails during workflow execution, the error is recorded in the workflow history:
+
+```json
+{
+  "type": "error",
+  "subtype": "expression_failed",
+  "state": "calculate_total",
+  "error_code": "EXPR_TIMEOUT",
+  "message": "Expression execution exceeded time limit (100ms)",
+  "expression": "$sum(data.items.price)"
+}
+```
 
 ---
 

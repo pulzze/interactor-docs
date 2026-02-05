@@ -36,6 +36,53 @@ Workflows consist of:
 
 ---
 
+## Data Model
+
+Workflows have a clear separation between input and runtime data:
+
+| Concept | Access Pattern | Description | Mutability |
+|---------|----------------|-------------|------------|
+| `input` | `{{ input.order_id }}` | Values passed at instance creation | Immutable |
+| `data` | `{{ data.status }}` | Runtime data accumulated during execution | Mutable |
+
+### Input Schema
+
+Workflows can define an `input_schema` (JSON Schema) to validate input at instance creation:
+
+```json
+{
+  "name": "approval_workflow",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "order_id": { "type": "string" },
+      "amount": { "type": "number", "minimum": 0 }
+    },
+    "required": ["order_id", "amount"]
+  },
+  "initial_state": "review",
+  "states": { ... }
+}
+```
+
+### Setting Data
+
+Use the `set` step with explicit `data.` prefix:
+
+```json
+{
+  "type": "set",
+  "values": {
+    "data.status": "processing",
+    "data.requires_approval": "{{ input.amount > 10000 }}"
+  }
+}
+```
+
+Attempting to write to `input.*` returns an `INPUT_IMMUTABLE` error.
+
+---
+
 ## Instructions
 
 ### Step 1: Create a Workflow Definition
@@ -52,7 +99,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows \
       "request": {
         "type": "action",
         "logic": [
-          { "type": "set", "values": { "request_id": "{{ data.id }}", "status": "pending", "submitted_at": "{{ $now() }}" } }
+          { "type": "set", "values": { "data.request_id": "{{ data.id }}", "data.status": "pending", "data.submitted_at": "{{ $now() }}" } }
         ],
         "transitions": [
           { "target": "await_approval" }
@@ -132,7 +179,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows/validate \
     "states": {
       "start": {
         "type": "action",
-        "logic": [{ "type": "set", "values": { "message": "Hello" } }],
+        "logic": [{ "type": "set", "values": { "data.message": "Hello" } }],
         "transitions": [{ "target": "end" }]
       },
       "end": {
@@ -277,9 +324,12 @@ curl -X POST https://core.interactor.com/api/v1/workflows/approval_workflow/inst
     "namespace": "user_123",
     "status": "halted",
     "current_state": "await_approval",
-    "workflow_data": {
+    "input": {
       "request_id": "req_456",
       "amount": 5000,
+      "requester": "john@example.com"
+    },
+    "data": {
       "status": "pending",
       "submitted_at": "2026-01-20T12:00:00Z"
     },
@@ -360,9 +410,12 @@ curl https://core.interactor.com/api/v1/workflows/instances/inst_xyz \
     "namespace": "user_123",
     "status": "halted",
     "current_state": "await_approval",
-    "workflow_data": {
+    "input": {
       "request_id": "req_456",
       "amount": 5000,
+      "requester": "john@example.com"
+    },
+    "data": {
       "status": "pending"
     },
     "halting_presentation": {
@@ -425,9 +478,12 @@ curl -X POST https://core.interactor.com/api/v1/workflows/instances/inst_xyz/res
     "id": "inst_xyz",
     "status": "completed",
     "current_state": "approved",
-    "workflow_data": {
+    "input": {
       "request_id": "req_456",
       "amount": 5000,
+      "requester": "john@example.com"
+    },
+    "data": {
       "status": "pending",
       "approved": true,
       "comment": "Looks good, approved for Q1 budget"
@@ -549,7 +605,7 @@ curl https://core.interactor.com/api/v1/workflows/instances/inst_xyz/history \
 | `since` | ISO8601 | Events after this timestamp |
 | `until` | ISO8601 | Events before this timestamp |
 | `thread` | string | Filter to specific thread |
-| `include_data` | boolean | Include workflow_data snapshots |
+| `include_data` | boolean | Include `input` and `data` snapshots |
 
 **Response:**
 ```json
@@ -590,7 +646,7 @@ curl https://core.interactor.com/api/v1/workflows/instances/inst_xyz/events/evt_
   -H "Authorization: Bearer <token>"
 ```
 
-Add `?include_data=true` to include the `workflow_data` snapshot at that point.
+Add `?include_data=true` to include the `input` and `data` snapshots at that point.
 
 ### Error Dashboard
 
@@ -804,20 +860,22 @@ When a workflow halts, specify how to present the required input to users.
 
 ### Set Logic
 
-Set values in workflow data using template expressions:
+Set values in workflow data using the `data.` prefix:
 
 ```json
 {
   "type": "set",
   "values": {
-    "total": "{{ $sum(data.items.price) }}",
-    "needs_approval": "{{ $sum(data.items.price) > 1000 }}",
-    "calculated_at": "{{ $now() }}"
+    "data.total": "{{ $sum(data.items.price) }}",
+    "data.needs_approval": "{{ $sum(data.items.price) > 1000 }}",
+    "data.calculated_at": "{{ $now() }}"
   }
 }
 ```
 
-Template expressions use `{{ }}` delimiters with `data` (workflow data) and `parameters` (workflow parameters) as sources. Simple dot-paths are resolved instantly; complex expressions use JSONata.
+**Important:** All set keys must start with `data.` to explicitly write to mutable workflow data. Attempting to write to `input.` returns an `INPUT_IMMUTABLE` error since input is read-only.
+
+Template expressions use `{{ }}` delimiters with `input` (immutable instance input) and `data` (mutable workflow data) as sources. Simple dot-paths are resolved instantly; complex expressions use JSONata.
 
 ### HTTP Logic
 
@@ -827,15 +885,15 @@ Make external API calls:
 {
   "type": "http",
   "method": "POST",
-  "url": "https://api.yourservice.com/process",
+  "url": "https://api.yourservice.com/orders/{{ input.order_id }}",
   "headers": {
-    "Authorization": "Bearer {{ parameters.api_key }}",
+    "Authorization": "Bearer {{ input.api_key }}",
     "Content-Type": "application/json"
   },
   "body": {
-    "order_id": "{{ data.order_id }}",
-    "amount": "{{ data.amount }}",
-    "customer_email": "{{ data.customer_email }}"
+    "status": "{{ data.status }}",
+    "processed_at": "{{ data.processed_at }}",
+    "customer_email": "{{ input.customer_email }}"
   },
   "timeout": 30000,
   "retry": {
@@ -918,7 +976,7 @@ Use `and` / `or` operators for complex conditions:
     "submit": {
       "type": "action",
       "logic": [
-        { "type": "set", "values": { "submitted_at": "{{ $now() }}", "status": "pending" } }
+        { "type": "set", "values": { "data.submitted_at": "{{ $now() }}", "data.status": "pending" } }
       ],
       "transitions": [
         { "target": "auto_approved", "condition": "data.amount <= 1000" },
@@ -966,7 +1024,7 @@ Use `and` / `or` operators for complex conditions:
     "auto_approved": {
       "type": "action",
       "logic": [
-        { "type": "set", "values": { "status": "approved", "approved_by": "auto", "approved_at": "{{ $now() }}" } }
+        { "type": "set", "values": { "data.status": "approved", "data.approved_by": "auto", "data.approved_at": "{{ $now() }}" } }
       ],
       "transitions": [
         { "target": "notify_requester" }
@@ -976,7 +1034,7 @@ Use `and` / `or` operators for complex conditions:
     "approved": {
       "type": "action",
       "logic": [
-        { "type": "set", "values": { "status": "approved", "approved_at": "{{ $now() }}" } }
+        { "type": "set", "values": { "data.status": "approved", "data.approved_at": "{{ $now() }}" } }
       ],
       "transitions": [
         { "target": "notify_requester" }
@@ -986,7 +1044,7 @@ Use `and` / `or` operators for complex conditions:
     "rejected": {
       "type": "action",
       "logic": [
-        { "type": "set", "values": { "status": "rejected", "rejected_at": "{{ $now() }}" } }
+        { "type": "set", "values": { "data.status": "rejected", "data.rejected_at": "{{ $now() }}" } }
       ],
       "transitions": [
         { "target": "notify_requester" }
@@ -1729,7 +1787,8 @@ interface WorkflowInstance {
   namespace: string;
   status: InstanceStatus;
   current_state: string;
-  workflow_data: Record<string, any>;
+  input: Record<string, any>;  // Immutable instance input
+  data: Record<string, any>;   // Mutable runtime data
   halting_presentation?: PresentationDefinition;
   threads: WorkflowThread[];
   history: HistoryEntry[];
@@ -1899,9 +1958,12 @@ Every webhook delivery includes these headers:
     "version_id": "v_abc123",
     "namespace": "user_123",
     "current_state": "await_approval",
-    "workflow_data": {
+    "input": {
       "request_id": "req_456",
       "amount": 5000,
+      "requester": "john@example.com"
+    },
+    "data": {
       "status": "pending"
     },
     "halting_presentation": {
@@ -1929,9 +1991,12 @@ Every webhook delivery includes these headers:
     "version_id": "v_abc123",
     "namespace": "user_123",
     "current_state": "approved",
-    "workflow_data": {
+    "input": {
       "request_id": "req_456",
       "amount": 5000,
+      "requester": "john@example.com"
+    },
+    "data": {
       "status": "approved",
       "approved_at": "2026-01-20T12:05:00Z"
     }
@@ -2198,7 +2263,7 @@ When multiple resume requests arrive simultaneously:
 
 | Limit | Value | Notes |
 |-------|-------|-------|
-| Max `workflow_data` size | 256 KB | Accumulated across states |
+| Max `data` size | 256 KB | Accumulated across states |
 | Max input payload size | 64 KB | Per resume/create call |
 | Max concurrent threads | 10 | Per instance |
 | Instance TTL (running) | 30 days | Auto-cancelled after |
@@ -2919,7 +2984,8 @@ function ApprovalPage({ instanceId }: { instanceId: string }) {
     "namespace": { "type": "string" },
     "status": { "enum": ["running", "halted", "completed", "failed", "cancelled"] },
     "current_state": { "type": "string" },
-    "workflow_data": { "type": "object" },
+    "input": { "type": "object", "description": "Immutable instance input" },
+    "data": { "type": "object", "description": "Mutable runtime data" },
     "halting_presentation": { "$ref": "workflow-definition.json#/$defs/presentation" },
     "threads": {
       "type": "array",
