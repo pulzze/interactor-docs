@@ -45,7 +45,21 @@ curl https://core.interactor.com/api/v1/webhooks/event-types \
 }
 ```
 
-Event types are grouped by category (the prefix before the first dot). You can subscribe to individual events or use wildcards (e.g., `credential.*`).
+Event types are grouped by category (the prefix before the first dot). You can subscribe to individual events or use wildcards:
+
+| Pattern | Matches |
+|---------|---------|
+| `credential.*` | All credential events |
+| `workflow.*` | All workflow events |
+| `agent.*` | All agent events |
+| `*` | All events |
+
+**Examples:**
+```json
+{
+  "event_types": ["credential.*", "workflow.completed"]
+}
+```
 
 ### Create a Webhook
 

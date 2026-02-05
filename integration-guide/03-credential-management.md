@@ -203,9 +203,11 @@ curl -X POST https://core.interactor.com/api/v1/oauth/initiate \
 | `service_id` | string | Yes | Service ID from Knowledge Base |
 | `user_ref` | string | Yes | Your user identifier |
 | `scopes` | array | No | OAuth scopes (defaults to service's default scopes) |
-| `redirect_uri` | string | No | Override OAuth callback URL |
-| `success_redirect_url` | string | No | Where to redirect after successful authorization |
+| `redirect_uri` | string | No | Override Interactor's OAuth callback URL (advanced - rarely needed) |
+| `success_redirect_url` | string | No | Where to redirect your user after successful authorization |
 | `metadata` | object | No | Custom data to store with the flow |
+
+> **Note:** Most integrations only need `success_redirect_url`. The `redirect_uri` parameter is for advanced cases where you need to receive the OAuth callback directly instead of letting Interactor handle it.
 
 **Response (201 Created):**
 ```json
