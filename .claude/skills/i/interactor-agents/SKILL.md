@@ -18,10 +18,22 @@ Build LLM-powered assistants that can have conversations, use tools, and access 
 
 ## Prerequisites
 
-- Interactor authentication configured (see `interactor-auth` skill)
-- Understanding of LLM concepts (prompts, tools, context)
-- Webhook endpoint for tool callbacks (optional, for custom tools)
-- Database with network access from Interactor (optional, for data sources)
+> **CRITICAL: Access Token Required**
+>
+> Every AI Agent API call requires an `access_token` in the Authorization header.
+> Without it, all requests fail with `401 Unauthorized`.
+>
+> The token (`access_token`, `interactor_access_token`, or just `token`) is obtained
+> by exchanging your OAuth `client_id` + `client_secret` via the token endpoint.
+
+**Required:**
+- [ ] Interactor authentication configured (see `interactor-auth` skill)
+- [ ] Valid `access_token` from OAuth token exchange
+- [ ] Token refresh logic implemented (tokens expire in 15 minutes)
+
+**Optional:**
+- Webhook endpoint for tool callbacks (for custom tools)
+- Database with network access from Interactor (for data sources)
 - `jq` command-line tool (for bash examples)
 
 ## Overview
@@ -2650,6 +2662,75 @@ When implementing AI agents, provide this summary:
 2. Set up webhooks for real-time updates (see `interactor-webhooks` skill)
 3. Implement streaming for real-time responses
 ```
+
+---
+
+## Authentication Troubleshooting
+
+### 401 Unauthorized on All Requests
+
+**Problem:** API returns `401 Unauthorized` for agent operations.
+
+**Cause:** Missing, invalid, or expired access token.
+
+**Solution:**
+
+```bash
+# 1. Verify you have a token
+echo $TOKEN  # Should not be empty
+
+# 2. Get a fresh token
+TOKEN=$(curl -s -X POST https://auth.interactor.com/api/v1/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "client_credentials",
+    "client_id": "'$INTERACTOR_CLIENT_ID'",
+    "client_secret": "'$INTERACTOR_CLIENT_SECRET'"
+  }' | jq -r '.data.access_token')
+
+# 3. Test with the token
+curl https://core.interactor.com/api/v1/agents/assistants \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Token Not Passed Through Call Chain
+
+**Problem:** Agent created locally but not synced with Interactor.
+
+**Cause:** Token obtained but not passed to the API call function.
+
+**Solution:** Ensure token flows through your entire call stack:
+
+```typescript
+// ❌ Common mistake: Function doesn't receive token
+async function createAgent(name: string) {
+  // Token is undefined here!
+  return interactorClient.post('/agents/assistants', { name });
+}
+
+// ✅ Correct: Token passed explicitly
+async function createAgent(name: string, accessToken: string) {
+  return fetch('https://core.interactor.com/api/v1/agents/assistants', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ name })
+  });
+}
+```
+
+### Integration Checklist
+
+Before deploying, verify these are all true:
+
+- [ ] `client_id` and `client_secret` are set in environment
+- [ ] Token exchange returns valid `access_token`
+- [ ] Token refresh is implemented (15-minute expiry)
+- [ ] **Every API call includes `Authorization: Bearer <token>` header**
+- [ ] Token is passed through your full call chain
+- [ ] 401 errors trigger token refresh
 
 ---
 

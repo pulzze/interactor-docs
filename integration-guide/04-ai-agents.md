@@ -1,8 +1,43 @@
 # AI Agents
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-04
 
 AI Agents are LLM-powered assistants that can have conversations, use tools, and access your data sources to help your users accomplish tasks.
+
+---
+
+## Prerequisites
+
+> **Authentication Required**: All AI Agent API operations require a valid `access_token`. Without it, all requests will fail with `401 Unauthorized`.
+
+Before using the AI Agents API, you **must** complete the following:
+
+1. **Complete [Setup and Authentication](02-setup-and-authentication.md)** - Register your organization and create OAuth client credentials
+2. **Obtain an access token** - Exchange your `client_id` and `client_secret` for an `access_token` (Step 4 of Setup guide)
+3. **Implement token refresh** - Tokens expire after 15 minutes; implement the caching strategy from the Setup guide
+
+### Quick Token Check
+
+```bash
+# Test your token is working
+curl https://core.interactor.com/api/v1/agents/assistants \
+  -H "Authorization: Bearer <your_access_token>"
+
+# If you get 401 Unauthorized, your token is missing, invalid, or expired
+```
+
+### Common Variable Names
+
+When integrating Interactor into your application, you may see these variable names referring to the same token:
+
+| Variable Name | Where Used | Same Token? |
+|---------------|------------|-------------|
+| `access_token` | OAuth response, API docs | ✓ |
+| `interactor_access_token` | Solution app code | ✓ |
+| `token` | curl examples, shorthand | ✓ |
+| `Bearer <token>` | HTTP Authorization header | ✓ |
+
+All refer to the JWT access token obtained from the OAuth token endpoint.
 
 ---
 
@@ -1043,6 +1078,82 @@ Subscribe to agent events:
 | `agent.room.closed` | Room was closed |
 
 See [Webhooks and Streaming](06-webhooks-and-streaming.md) for details.
+
+---
+
+## Troubleshooting
+
+### Getting 401 Unauthorized on Agent API Calls
+
+This means your token is invalid, expired, or missing. Check:
+
+| Issue | Solution |
+|-------|----------|
+| No token provided | Add `Authorization: Bearer <token>` header to all requests |
+| Token expired | Tokens expire after 15 minutes - implement token refresh (see [Token Caching Strategy](02-setup-and-authentication.md#token-management)) |
+| Wrong token type | Use the `access_token` from OAuth client credentials, not a user login token |
+| Invalid credentials | Verify your `client_id` and `client_secret` are correct |
+
+**Debug Steps:**
+
+```bash
+# 1. Get a fresh token
+TOKEN=$(curl -s -X POST https://auth.interactor.com/api/v1/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "client_credentials",
+    "client_id": "YOUR_CLIENT_ID",
+    "client_secret": "YOUR_CLIENT_SECRET"
+  }' | jq -r '.data.access_token')
+
+# 2. Verify token is not empty
+echo "Token: $TOKEN"
+
+# 3. Test with the token
+curl -i https://core.interactor.com/api/v1/agents/assistants \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Agent Operations Work Locally But Not in Production
+
+Ensure your production environment has access to the token:
+
+```typescript
+// Common mistake: Token not passed through the call chain
+class AgentService {
+  // ❌ Bad: Token hardcoded or missing
+  async createAgent(name: string) {
+    return fetch('/api/v1/agents/assistants', {
+      method: 'POST',
+      body: JSON.stringify({ name })
+      // Missing Authorization header!
+    });
+  }
+
+  // ✅ Good: Token passed explicitly
+  async createAgent(name: string, accessToken: string) {
+    return fetch('https://core.interactor.com/api/v1/agents/assistants', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name })
+    });
+  }
+}
+```
+
+### Integration Checklist
+
+Before deploying your Interactor integration, verify:
+
+- [ ] OAuth client credentials are stored securely (environment variables, not code)
+- [ ] Token exchange is working (`POST /api/v1/oauth/token` returns `access_token`)
+- [ ] Token refresh logic is implemented (tokens expire after 15 minutes)
+- [ ] **All API calls include the `Authorization: Bearer <token>` header**
+- [ ] Error handling for 401 responses triggers token refresh
+- [ ] Token is passed through your entire call chain (controllers → services → API client)
 
 ---
 
