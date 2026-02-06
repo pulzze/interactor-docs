@@ -990,6 +990,10 @@ Authorization fails closed for security:
 | Callback error (5xx) | Deny |
 | Missing permissions | Deny |
 
+### List Filtering
+
+When listing instances, unauthorized instances are automatically filtered out. Users only see instances where they have `view` permission for the current state. This prevents exposing instance IDs that users cannot access.
+
 ---
 
 ## Best Practices
