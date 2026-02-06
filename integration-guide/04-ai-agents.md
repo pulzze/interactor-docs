@@ -102,6 +102,9 @@ curl -X POST https://core.interactor.com/api/v1/agents/assistants \
 | `active` | boolean | No | Whether the assistant is enabled (default: `true`) |
 | `metadata` | object | No | Custom data to store with the assistant |
 | `builtin_tools` | object | No | Configure built-in tool availability (see User Profiles) |
+| `supporting_assistants` | array | No | Assistants this orchestrator can delegate to (see [Supporting Assistants](#supporting-assistants)) |
+| `delegation_config` | object | No | Delegation behavior configuration (see [Supporting Assistants](#supporting-assistants)) |
+| `allow_as_supporting` | boolean | No | Can this assistant be delegated to (default: `true`) |
 
 ### List Assistants
 
@@ -1056,6 +1059,137 @@ Assistant: [Uses get_my_profile tool]
 
 ---
 
+## Supporting Assistants
+
+Supporting assistants enable a modular orchestration pattern where a primary ("orchestrator") assistant can delegate tasks to specialized assistants.
+
+### Overview
+
+```
+┌─────────────────────┐
+│  Primary Assistant  │
+│  (General Support)  │
+└─────────┬───────────┘
+          │ delegates specialized tasks
+    ┌─────┴─────┬─────────────┐
+    ▼           ▼             ▼
+┌─────────┐ ┌─────────┐ ┌───────────┐
+│Billing  │ │Technical│ │Shipping   │
+│Assistant│ │Support  │ │Tracker    │
+└─────────┘ └─────────┘ └───────────┘
+```
+
+### Configuring an Orchestrator
+
+To configure an assistant as an orchestrator, add the `supporting_assistants` array:
+
+```bash
+curl -X PUT https://core.interactor.com/api/v1/agents/assistants/asst_primary \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "supporting_assistants": [
+      {
+        "assistant_id": "asst_billing",
+        "description": "Handles billing questions, refunds, and payment issues"
+      },
+      {
+        "assistant_id": "asst_technical",
+        "description": "Handles technical troubleshooting and product issues"
+      }
+    ],
+    "delegation_config": {
+      "delegation_timeout_ms": 60000,
+      "credential_inheritance": "scoped"
+    }
+  }'
+```
+
+The orchestrator's system prompt automatically receives information about available supporting assistants, and the orchestrator can choose to delegate tasks using the built-in `delegate_to_assistant` tool.
+
+### Configuration Options
+
+**Assistant Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `supporting_assistants` | array | List of assistants this orchestrator can delegate to |
+| `delegation_config` | object | Delegation behavior settings |
+| `allow_as_supporting` | boolean | Whether this assistant can be delegated to (default: `true`) |
+
+**supporting_assistants Array:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `assistant_id` | string | Yes | ID of the supporting assistant |
+| `description` | string | Yes | What this assistant handles (shown to orchestrator) |
+
+**delegation_config Object:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `delegation_timeout_ms` | integer | 60000 | Timeout for delegation completion |
+| `timeout_grace_ms` | integer | 30000 | Grace period after timeout before termination |
+| `resume_timeout_ms` | integer | 300000 | Time allowed to resume a paused delegation |
+| `credential_inheritance` | string | `"scoped"` | How credentials pass: `all`, `scoped`, or `none` |
+
+**Credential Inheritance Modes:**
+
+| Mode | Description |
+|------|-------------|
+| `all` | Supporting assistant inherits all user credentials |
+| `scoped` | Only credentials for services the supporting assistant's tools require |
+| `none` | No credential inheritance - uses assistant-level credentials only |
+
+### Configuring a Supporting Assistant
+
+Supporting assistants work like regular assistants, but set `allow_as_supporting: true` (the default):
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/agents/assistants \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "billing_assistant",
+    "description": "Specialized billing and refund assistant",
+    "system_prompt": "You are a billing specialist. Help with refunds, payments, and invoices.",
+    "default_tools": ["get_invoice", "process_refund", "update_payment_method"],
+    "allow_as_supporting": true
+  }'
+```
+
+To prevent an assistant from being used as a supporting assistant:
+
+```bash
+curl -X PUT https://core.interactor.com/api/v1/agents/assistants/asst_xyz \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"allow_as_supporting": false}'
+```
+
+### Message Attribution
+
+Messages from delegated tasks include a `delegation_context` field indicating their origin:
+
+```json
+{
+  "id": "msg_123",
+  "role": "assistant",
+  "content": "I've processed your refund of $50.00.",
+  "delegation_context": {
+    "delegation_id": "del_abc123",
+    "parent_assistant_id": "asst_primary",
+    "parent_assistant_name": "general_support",
+    "supporting_assistant_id": "asst_billing",
+    "supporting_assistant_name": "billing_assistant"
+  }
+}
+```
+
+Use this to display attribution in your UI, such as "Billing Assistant (via General Support)".
+
+---
+
 ## Best Practices
 
 1. **Keep instructions focused** - Clear, specific instructions produce better results
@@ -1065,6 +1199,7 @@ Assistant: [Uses get_my_profile tool]
 5. **Monitor tool usage** - Track which tools are being called and how often
 6. **Test conversations** - Verify assistant behavior before deploying to users
 7. **Use profiles for personalization** - Store user preferences in profiles rather than room metadata
+8. **Use supporting assistants for modularity** - Specialized assistants for specific domains improve reliability
 
 ---
 
