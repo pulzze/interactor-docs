@@ -712,6 +712,11 @@ This helps the assistant translate natural language questions like "How many use
 
 The system automatically learns which semantic mappings work well based on query success/failure. Learned mappings are scoped hierarchically: **User → Account → Data Source**.
 
+Mappings include multi-dimensional scoring:
+- **`confidence`**: Stored score (legacy, for backward compatibility)
+- **`effective_score`**: Query-time computed score including source weight, feedback boost, recency, and scope weight (preferred for ranking)
+- **`source`**: How the mapping was discovered (`specification`, `admin_defined`, `documentation`, `ai_inferred`, `usage_learned`)
+
 **Get Learned Mappings:**
 
 Retrieve all learned mappings for a user (merged from all applicable scopes):
@@ -724,19 +729,26 @@ curl "https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mappings?ac
 **Response:**
 ```json
 {
-  "data": {
-    "learned_mappings": [
-      {
-        "id": "lsm_abc",
-        "term": "active customers",
-        "expression": "customers WHERE status = 'active'",
-        "scope_type": "user",
-        "confidence": 0.89,
-        "success_count": 15,
-        "failure_count": 2,
-        "last_used_at": "2026-02-06T10:30:00Z"
-      }
-    ]
+  "data": [
+    {
+      "id": "lsm_abc",
+      "term": "active customers",
+      "expression": "customers WHERE status = 'active'",
+      "scope_type": "user",
+      "source": "usage_learned",
+      "confidence": 0.89,
+      "effective_score": 0.9234,
+      "success_count": 15,
+      "failure_count": 2,
+      "selection_count": 5,
+      "last_used_at": "2026-02-06T10:30:00Z",
+      "last_selected_at": "2026-02-06T09:15:00Z",
+      "dismissed": false
+    }
+  ],
+  "meta": {
+    "count": 1,
+    "scopes_included": ["data_source", "account", "user"]
   }
 }
 ```
@@ -772,6 +784,33 @@ Mark a mapping as dismissed (won't be suggested again for this user):
 curl -X POST https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mappings/lsm_abc/dismiss \
   -H "Authorization: Bearer <token>"
 ```
+
+**Record Selection (Feedback):**
+
+When a user selects/confirms a mapping is correct, record the feedback to boost its `effective_score`:
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mappings/lsm_abc/select \
+  -H "Authorization: Bearer <token>"
+```
+
+**Create Admin Mapping:**
+
+Create an admin-defined mapping (higher source weight than usage-learned):
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mappings \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "term": "quarterly revenue",
+    "expression": "SUM(total) WHERE quarter = CURRENT_QUARTER",
+    "scope_type": "data_source",
+    "source": "admin_defined"
+  }'
+```
+
+For account or user scope, include `account_id` (and `user_ref` for user scope).
 
 ---
 
