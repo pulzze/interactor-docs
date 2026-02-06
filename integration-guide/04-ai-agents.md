@@ -708,6 +708,71 @@ curl -X PATCH https://core.interactor.com/api/v1/data-sources/ds_abc/semantic-ma
 
 This helps the assistant translate natural language questions like "How many users signed up last month?" into the correct SQL query.
 
+### Adaptive Learning (Learned Mappings)
+
+The system automatically learns which semantic mappings work well based on query success/failure. Learned mappings are scoped hierarchically: **User → Account → Data Source**.
+
+**Get Learned Mappings:**
+
+Retrieve all learned mappings for a user (merged from all applicable scopes):
+
+```bash
+curl "https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mappings?account_id=acc_123&user_ref=user_456" \
+  -H "Authorization: Bearer <token>"
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "learned_mappings": [
+      {
+        "id": "lsm_abc",
+        "term": "active customers",
+        "expression": "customers WHERE status = 'active'",
+        "scope_type": "user",
+        "confidence": 0.89,
+        "success_count": 15,
+        "failure_count": 2,
+        "last_used_at": "2026-02-06T10:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+**Get Promotion Candidates (Admin):**
+
+Find high-confidence mappings that multiple users have learned (candidates for promotion to account scope):
+
+```bash
+curl "https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mappings/candidates?account_id=acc_123&min_confidence=0.7&min_users=2" \
+  -H "Authorization: Bearer <token>"
+```
+
+**Promote a Mapping:**
+
+Promote a user-scoped mapping to account scope (or account to data_source):
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mappings/lsm_abc/promote \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to_scope": "account",
+    "promoted_by": "admin_user_ref"
+  }'
+```
+
+**Dismiss a Mapping:**
+
+Mark a mapping as dismissed (won't be suggested again for this user):
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mappings/lsm_abc/dismiss \
+  -H "Authorization: Bearer <token>"
+```
+
 ---
 
 ## Knowledge Base Search
