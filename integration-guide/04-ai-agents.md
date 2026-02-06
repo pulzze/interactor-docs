@@ -1188,6 +1188,92 @@ Messages from delegated tasks include a `delegation_context` field indicating th
 
 Use this to display attribution in your UI, such as "Billing Assistant (via General Support)".
 
+### Client Control API
+
+Clients can monitor and control delegations via REST endpoints.
+
+**Get Delegation Status:**
+
+```bash
+curl https://core.interactor.com/api/v1/agents/rooms/room_xyz/delegation \
+  -H "Authorization: Bearer <token>"
+```
+
+**Response (when active):**
+```json
+{
+  "data": {
+    "status": "active",
+    "active": true,
+    "delegation_id": "del_abc123",
+    "supporting_assistant": {
+      "id": "asst_billing",
+      "name": "billing_assistant"
+    },
+    "started_at": "2026-02-05T12:00:00Z",
+    "task": "Process refund for order #123"
+  }
+}
+```
+
+**Response (when paused):**
+```json
+{
+  "data": {
+    "status": "paused",
+    "active": false,
+    "resumable": true,
+    "delegation_id": "del_abc123",
+    "supporting_assistant": {
+      "id": "asst_billing",
+      "name": "billing_assistant"
+    },
+    "paused_at": "2026-02-05T12:01:00Z",
+    "resume_timeout_at": "2026-02-05T12:06:00Z",
+    "interrupt_reason": "user_requested"
+  }
+}
+```
+
+**Interrupt Active Delegation:**
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/agents/rooms/room_xyz/interrupt \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "user_requested"}'
+```
+
+**Response:**
+```json
+{
+  "interrupted": true,
+  "delegation_id": "del_abc123",
+  "resumable": true,
+  "resume_timeout_at": "2026-02-05T12:06:00Z"
+}
+```
+
+The orchestrator can resume paused delegations in subsequent conversation turns.
+
+### Delegation Events (SSE)
+
+When subscribed to the room's SSE stream (`GET /rooms/:id/stream`), clients receive delegation lifecycle events:
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `delegation.started` | `{delegation_id, supporting_assistant}` | Delegation began |
+| `delegation.completed` | `{delegation_id, status}` | Delegation finished successfully |
+| `delegation.paused` | `{delegation_id, reason, resumable, resume_timeout_at}` | Delegation paused (timeout or interrupted) |
+| `delegation.resumed` | `{delegation_id}` | Paused delegation resumed |
+| `delegation.timeout` | `{delegation_id, reason}` | Delegation timed out |
+| `delegation.expired` | `{delegation_id, reason}` | Paused delegation expired (not resumed in time) |
+
+Use these events to update your UI in real-time:
+- Show "Connecting to Billing Assistant..." on `delegation.started`
+- Show "Paused - tap to resume" on `delegation.paused`
+- Clear delegation indicator on `delegation.completed`
+
 ---
 
 ## Best Practices
