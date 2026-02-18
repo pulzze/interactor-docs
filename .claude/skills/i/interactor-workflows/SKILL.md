@@ -1918,7 +1918,7 @@ X-Interactor-Timestamp: <unix-seconds>
   "workflow_id": "wf_abc",
   "workflow_name": "purchase_approval",
   "state": "executive_approval",
-  "user_ref": "user_123",
+  "external_user_id": "user_123",
   "context": {
     "account_id": "acc_456",
     "workflow_data": {...}

@@ -12,7 +12,7 @@ Interactor handles the complexity of OAuth:
 
 - **Token Storage** - Encrypted storage of access and refresh tokens
 - **Automatic Refresh** - Tokens are refreshed before expiry
-- **Multi-tenant Isolation** - `user_ref` separates different users' credentials
+- **Multi-tenant Isolation** - `external_user_id` separates different users' credentials
 - **Revocation Handling** - Detects when users revoke access
 
 ---
@@ -22,7 +22,7 @@ Interactor handles the complexity of OAuth:
 ### List All Credentials
 
 ```bash
-curl "https://core.interactor.com/api/v1/credentials?user_ref=user_123" \
+curl "https://core.interactor.com/api/v1/credentials?external_user_id=user_123" \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -30,7 +30,7 @@ curl "https://core.interactor.com/api/v1/credentials?user_ref=user_123" \
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `user_ref` | string | Yes | Filter by user reference |
+| `external_user_id` | string | Yes | Your end user's identifier |
 
 **Response:**
 ```json
@@ -38,7 +38,7 @@ curl "https://core.interactor.com/api/v1/credentials?user_ref=user_123" \
   "data": [
     {
       "id": "cred_abc",
-      "user_ref": "user_123",
+      "external_user_id": "user_123",
       "service_id": "google_calendar",
       "service_name": "Google Calendar",
       "auth_type": "oauth2_authorization_code",
@@ -62,7 +62,7 @@ curl "https://core.interactor.com/api/v1/credentials?user_ref=user_123" \
 Get summary statistics for a user's credentials:
 
 ```bash
-curl "https://core.interactor.com/api/v1/credentials/summary?user_ref=user_123" \
+curl "https://core.interactor.com/api/v1/credentials/summary?external_user_id=user_123" \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -97,7 +97,7 @@ curl https://core.interactor.com/api/v1/credentials/cred_abc \
 {
   "data": {
     "id": "cred_abc",
-    "user_ref": "user_123",
+    "external_user_id": "user_123",
     "service_id": "google_calendar",
     "service_name": "Google Calendar",
     "auth_type": "oauth2_authorization_code",
@@ -190,7 +190,7 @@ curl -X POST https://core.interactor.com/api/v1/oauth/initiate \
   -H "Content-Type: application/json" \
   -d '{
     "service_id": "google_calendar",
-    "user_ref": "user_123",
+    "external_user_id": "user_123",
     "scopes": ["https://www.googleapis.com/auth/calendar.readonly"],
     "success_redirect_url": "https://yourapp.com/oauth/success"
   }'
@@ -201,7 +201,7 @@ curl -X POST https://core.interactor.com/api/v1/oauth/initiate \
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `service_id` | string | Yes | Service ID from Knowledge Base |
-| `user_ref` | string | Yes | Your user identifier |
+| `external_user_id` | string | Yes | Your end user's identifier |
 | `scopes` | array | No | OAuth scopes (defaults to service's default scopes) |
 | `redirect_uri` | string | No | Override Interactor's OAuth callback URL (advanced - rarely needed) |
 | `success_redirect_url` | string | No | Where to redirect your user after successful authorization |
@@ -403,7 +403,7 @@ Both formats are equivalent. Use whichever is more convenient - Interactor handl
 
 ## Best Practices
 
-1. **Use user_ref per user** - Isolate each of your users' credentials
+1. **Use external_user_id per user** - Isolate each of your users' credentials
 2. **Handle revocation gracefully** - Prompt users to re-authorize when credentials are revoked
 3. **Request minimal scopes** - Only request the permissions you need
 4. **Use custom OAuth apps for production** - Provides better branding and higher rate limits

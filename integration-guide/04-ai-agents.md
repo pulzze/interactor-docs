@@ -147,7 +147,7 @@ curl -X POST https://core.interactor.com/api/v1/agents/asst_abc/rooms \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "user_ref": "user_123",
+    "external_user_id": "user_123",
     "metadata": {
       "user_name": "John",
       "context": "billing_question"
@@ -178,7 +178,7 @@ curl https://core.interactor.com/api/v1/agents/rooms \
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `user_ref` | string | Filter by user reference |
+| `external_user_id` | string | Filter by user |
 | `assistant_id` | string | Filter by assistant |
 | `status` | string | `active` or `closed` |
 
@@ -440,7 +440,7 @@ When the assistant invokes your tool, Interactor POSTs to your `callback_url` wi
   "arguments": {"query": "laptop", "category": "electronics"},
   "context": {
     "account_id": "acc_abc123",
-    "user_ref": "user_456"
+    "external_user_id": "user_456"
   },
   "credentials": {}
 }
@@ -722,7 +722,7 @@ Mappings include multi-dimensional scoring:
 Retrieve all learned mappings for a user (merged from all applicable scopes):
 
 ```bash
-curl "https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mappings?account_id=acc_123&user_ref=user_456" \
+curl "https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mappings?account_id=acc_123&external_user_id=user_456" \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -772,7 +772,7 @@ curl -X POST https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mapp
   -H "Content-Type: application/json" \
   -d '{
     "to_scope": "account",
-    "promoted_by": "admin_user_ref"
+    "promoted_by": "admin_external_user_id"
   }'
 ```
 
@@ -810,7 +810,7 @@ curl -X POST https://core.interactor.com/api/v1/data-sources/ds_abc/learned-mapp
   }'
 ```
 
-For account or user scope, include `account_id` (and `user_ref` for user scope).
+For account or user scope, include `account_id` (and `external_user_id` for user scope).
 
 ---
 
@@ -1105,17 +1105,17 @@ curl -X POST https://core.interactor.com/api/v1/agents/rooms/room_xyz/messages \
   -d '{
     "content": "What time is our standup?",
     "role": "user",
-    "user_ref": "user_123",
+    "external_user_id": "user_123",
     "profile_context": "team-engineering"
   }'
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `user_ref` | string | User identifier for profile lookup |
+| `external_user_id` | string | User identifier for profile lookup |
 | `profile_context` | string | Optional context_id for 3-layer merge |
 
-When `user_ref` is provided:
+When `external_user_id` is provided:
 1. User profile is auto-created if it doesn't exist
 2. Effective profile is loaded (merging default → context → user)
 3. Profile data is included in the assistant's system prompt

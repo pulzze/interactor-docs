@@ -71,8 +71,8 @@ export class InteractorClient {
 
   // ============ Credentials ============
 
-  async listCredentials(userRef?: string) {
-    const params = userRef ? `?user_ref=${userRef}` : '';
+  async listCredentials(externalUserId?: string) {
+    const params = externalUserId ? `?external_user_id=${externalUserId}` : '';
     return this.request<any>('GET', `/credentials${params}`);
   }
 
@@ -87,11 +87,11 @@ export class InteractorClient {
     );
   }
 
-  async initiateOAuth(serviceId: string, userRef: string, redirectUri: string, scopes?: string[]) {
+  async initiateOAuth(serviceId: string, externalUserId: string, redirectUri: string, scopes?: string[]) {
     return this.request<{ flow_id: string; authorization_url: string }>(
       'POST',
       '/oauth/initiate',
-      { service_id: serviceId, user_ref: userRef, redirect_uri: redirectUri, scopes }
+      { service_id: serviceId, external_user_id: externalUserId, redirect_uri: redirectUri, scopes }
     );
   }
 
@@ -120,11 +120,11 @@ export class InteractorClient {
     return this.request<void>('POST', `/workflows/${name}/versions/${versionId}/publish`);
   }
 
-  async createWorkflowInstance(name: string, userRef: string, input: any) {
+  async createWorkflowInstance(name: string, externalUserId: string, input: any) {
     return this.request<{ id: string; status: string }>(
       'POST',
       `/workflows/${name}/instances`,
-      { user_ref: userRef, input }
+      { external_user_id: externalUserId, input }
     );
   }
 
@@ -132,7 +132,7 @@ export class InteractorClient {
     return this.request<any>('GET', `/workflows/instances/${id}`);
   }
 
-  async listWorkflowInstances(filters?: { user_ref?: string; workflow_name?: string; status?: string }) {
+  async listWorkflowInstances(filters?: { external_user_id?: string; workflow_name?: string; status?: string }) {
     const params = new URLSearchParams(filters as any).toString();
     return this.request<any[]>('GET', `/workflows/instances${params ? '?' + params : ''}`);
   }
@@ -171,15 +171,15 @@ export class InteractorClient {
     return this.request<any>('PUT', `/agents/assistants/${id}`, updates);
   }
 
-  async createRoom(assistantId: string, userRef: string, metadata?: any) {
+  async createRoom(assistantId: string, externalUserId: string, metadata?: any) {
     return this.request<{ id: string; status: string }>(
       'POST',
       `/agents/${assistantId}/rooms`,
-      { user_ref: userRef, metadata }
+      { external_user_id: externalUserId, metadata }
     );
   }
 
-  async listRooms(filters?: { user_ref?: string; assistant_id?: string; status?: string }) {
+  async listRooms(filters?: { external_user_id?: string; assistant_id?: string; status?: string }) {
     const params = new URLSearchParams(filters as any).toString();
     return this.request<any[]>('GET', `/agents/rooms${params ? '?' + params : ''}`);
   }
@@ -295,7 +295,7 @@ async function runApprovalWorkflow(userId: string, request: any) {
 // Chat with AI Assistant
 async function chat(userId: string, message: string) {
   // Create or get existing room
-  const rooms = await client.listRooms({ user_ref: `user_${userId}`, status: 'active' });
+  const rooms = await client.listRooms({ external_user_id: `user_${userId}`, status: 'active' });
   let room = rooms[0];
 
   if (!room) {
@@ -365,8 +365,8 @@ class InteractorClient:
 
     # ============ Credentials ============
 
-    def list_credentials(self, user_ref: Optional[str] = None) -> List[Dict]:
-        params = f'?user_ref={user_ref}' if user_ref else ''
+    def list_credentials(self, external_user_id: Optional[str] = None) -> List[Dict]:
+        params = f'?external_user_id={external_user_id}' if external_user_id else ''
         return self._request('GET', f'/credentials{params}')
 
     def get_credential(self, id: str) -> Dict:
@@ -378,13 +378,13 @@ class InteractorClient:
     def initiate_oauth(
         self,
         service_id: str,
-        user_ref: str,
+        external_user_id: str,
         redirect_uri: str,
         scopes: Optional[List[str]] = None
     ) -> Dict:
         return self._request('POST', '/oauth/initiate', {
             'service_id': service_id,
-            'user_ref': user_ref,
+            'external_user_id': external_user_id,
             'redirect_uri': redirect_uri,
             'scopes': scopes
         })
@@ -406,9 +406,9 @@ class InteractorClient:
     def publish_workflow(self, name: str, version_id: str) -> None:
         self._request('POST', f'/workflows/{name}/versions/{version_id}/publish')
 
-    def create_workflow_instance(self, name: str, user_ref: str, input_data: Dict) -> Dict:
+    def create_workflow_instance(self, name: str, external_user_id: str, input_data: Dict) -> Dict:
         return self._request('POST', f'/workflows/{name}/instances', {
-            'user_ref': user_ref,
+            'external_user_id': external_user_id,
             'input': input_data
         })
 
@@ -417,13 +417,13 @@ class InteractorClient:
 
     def list_workflow_instances(
         self,
-        user_ref: Optional[str] = None,
+        external_user_id: Optional[str] = None,
         workflow_name: Optional[str] = None,
         status: Optional[str] = None
     ) -> List[Dict]:
         params = []
-        if user_ref:
-            params.append(f'user_ref={user_ref}')
+        if external_user_id:
+            params.append(f'external_user_id={external_user_id}')
         if workflow_name:
             params.append(f'workflow_name={workflow_name}')
         if status:
@@ -471,23 +471,23 @@ class InteractorClient:
     def create_room(
         self,
         assistant_id: str,
-        user_ref: str,
+        external_user_id: str,
         metadata: Optional[Dict] = None
     ) -> Dict:
         return self._request('POST', f'/agents/{assistant_id}/rooms', {
-            'user_ref': user_ref,
+            'external_user_id': external_user_id,
             'metadata': metadata or {}
         })
 
     def list_rooms(
         self,
-        user_ref: Optional[str] = None,
+        external_user_id: Optional[str] = None,
         assistant_id: Optional[str] = None,
         status: Optional[str] = None
     ) -> List[Dict]:
         params = []
-        if user_ref:
-            params.append(f'user_ref={user_ref}')
+        if external_user_id:
+            params.append(f'external_user_id={external_user_id}')
         if assistant_id:
             params.append(f'assistant_id={assistant_id}')
         if status:
@@ -602,7 +602,7 @@ def run_approval_workflow(user_id: str, request_data: dict):
 # Chat with AI Assistant
 def chat(user_id: str, message: str):
     # Create or get existing room
-    rooms = client.list_rooms(user_ref=f'user_{user_id}', status='active')
+    rooms = client.list_rooms(external_user_id=f'user_{user_id}', status='active')
     room = rooms[0] if rooms else client.create_room('asst_support', f'user_{user_id}')
 
     # Send message

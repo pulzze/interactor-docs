@@ -204,7 +204,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows/approval_workflow/inst
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "user_ref": "user_123",
+    "external_user_id": "user_123",
     "input": {
       "id": "req_456",
       "amount": 5000,
@@ -237,7 +237,7 @@ curl https://core.interactor.com/api/v1/workflows/instances \
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `user_ref` | string | Filter by user reference |
+| `external_user_id` | string | Filter by user |
 | `workflow_name` | string | Filter by workflow |
 | `status` | string | `running`, `halted`, `completed`, `failed`, `cancelled` |
 
@@ -932,7 +932,7 @@ X-Interactor-Timestamp: <unix-seconds>
   "workflow_id": "wf_abc",
   "workflow_name": "purchase_approval",
   "state": "executive_approval",
-  "user_ref": "user_123",
+  "external_user_id": "user_123",
   "context": {
     "account_id": "acc_456",
     "workflow_data": {...}
@@ -1003,7 +1003,7 @@ When listing instances, unauthorized instances are automatically filtered out. U
 3. **Validate early** - Use `/validate` endpoint during development
 4. **Version carefully** - Publish new versions rather than modifying existing ones
 5. **Handle all paths** - Ensure every state has a valid transition or is terminal
-6. **Use user_ref** - Isolate workflow instances per user
+6. **Use external_user_id** - Isolate workflow instances per user
 
 ---
 

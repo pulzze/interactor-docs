@@ -284,7 +284,7 @@ All webhook events follow this structure:
 {
   "credential_id": "cred_abc",
   "service_id": "google_calendar",
-  "user_ref": "user_123"
+  "external_user_id": "user_123"
 }
 ```
 
@@ -293,7 +293,7 @@ All webhook events follow this structure:
 {
   "credential_id": "cred_abc",
   "service_id": "google_calendar",
-  "user_ref": "user_123",
+  "external_user_id": "user_123",
   "error": "refresh_token_expired"
 }
 ```
