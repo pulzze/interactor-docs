@@ -200,7 +200,7 @@ curl -X POST https://core.interactor.com/api/v1/oauth/initiate \
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `service_id` | string | Yes | Service ID from Knowledge Base |
+| `service_id` | string | Yes | Service ID from Service Knowledge Base |
 | `external_user_id` | string | Yes | Your end user's identifier |
 | `scopes` | array | No | OAuth scopes (defaults to service's default scopes) |
 | `redirect_uri` | string | No | Override Interactor's OAuth callback URL (advanced - rarely needed) |

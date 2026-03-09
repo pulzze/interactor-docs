@@ -814,7 +814,7 @@ For account or user scope, include `account_id` (and `external_user_id` for user
 
 ---
 
-## Knowledge Base Search
+## Service Knowledge Base Search
 
 Search for external services that assistants can connect to:
 
