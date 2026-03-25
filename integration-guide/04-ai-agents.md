@@ -196,6 +196,54 @@ curl -X POST https://core.interactor.com/api/v1/agents/rooms/room_xyz/close \
   -H "Authorization: Bearer <token>"
 ```
 
+Returns `204 No Content` on success.
+
+### Interrupt Room
+
+Interrupt an active agent processing (e.g., during a long-running tool call or delegation):
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/agents/rooms/room_xyz/interrupt \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "user_requested"}'
+```
+
+**Response:**
+```json
+{
+  "interrupted": true,
+  "delegation_id": "del_abc123",
+  "resumable": true,
+  "resume_timeout_at": "2026-01-20T12:30:00Z"
+}
+```
+
+> **Note:** This endpoint returns a flat response (not wrapped in `data`).
+
+### Delegation Status
+
+Check if an agent room has an active delegation to another assistant:
+
+```bash
+curl https://core.interactor.com/api/v1/agents/rooms/room_xyz/delegation \
+  -H "Authorization: Bearer <token>"
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "status": "active",
+    "active": true,
+    "delegation_id": "del_abc123",
+    "supporting_assistant": "asst_helper",
+    "started_at": "2026-01-20T12:00:00Z",
+    "resumable": true
+  }
+}
+```
+
 ---
 
 ## Messages
@@ -207,10 +255,18 @@ curl -X POST https://core.interactor.com/api/v1/agents/rooms/room_xyz/messages \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "content": "How do I update my billing information?",
-    "role": "user"
+    "content": "How do I update my billing information?"
   }'
 ```
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `content` | Yes | Message text |
+| `external_user_id` | No | User identifier for context |
+| `profile_context` | No | Per-message profile context |
+| `enabled_tools` | No | Override available tools for this turn |
+| `enabled_data_sources` | No | Override available data sources for this turn |
+| `metadata` | No | Arbitrary metadata (default: `{}`) |
 
 **Response:**
 ```json
@@ -1104,7 +1160,6 @@ curl -X POST https://core.interactor.com/api/v1/agents/rooms/room_xyz/messages \
   -H "Content-Type: application/json" \
   -d '{
     "content": "What time is our standup?",
-    "role": "user",
     "external_user_id": "user_123",
     "profile_context": "team-engineering"
   }'
