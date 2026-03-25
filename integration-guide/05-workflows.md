@@ -294,21 +294,18 @@ curl https://core.interactor.com/api/v1/workflows/instances/inst_xyz \
 
 When a workflow reaches a halting state, it waits for external input.
 
-### Resume with Input
+### Resume with Selected Option
 
 ```bash
 curl -X POST https://core.interactor.com/api/v1/workflows/instances/inst_xyz/resume \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "input": {
-      "approved": true,
-      "comment": "Looks good"
-    }
+    "selected_option": "approve"
   }'
 ```
 
-The workflow continues execution based on the input and transition conditions.
+The `selected_option` field is required and must match one of the options presented in the halting state's `halting_presentation`. The workflow continues execution based on the selected option and transition conditions.
 
 ### Cancel Instance
 
@@ -337,7 +334,8 @@ curl -X POST https://core.interactor.com/api/v1/workflows/instances/inst_xyz/thr
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "input": {...}
+    "selected_option": "approve",
+    "user_input": {}
   }'
 ```
 
@@ -897,7 +895,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows/instances/inst_xyz/res
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "input": {"approved": true},
+    "selected_option": "approve",
     "permissions": ["manager", "finance"]
   }'
 ```

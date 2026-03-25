@@ -11,7 +11,7 @@ This guide covers account registration, OAuth client setup, and token management
 Create an account with the Account Server:
 
 ```bash
-curl -X POST https://auth.interactor.com/api/v1/auth/register \
+curl -X POST https://auth.interactor.com/api/v1/admin/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "developer@yourcompany.com",
@@ -34,7 +34,7 @@ Log in to get a user token, then create OAuth credentials for your backend:
 
 ```bash
 # Login
-curl -X POST https://auth.interactor.com/api/v1/auth/login \
+curl -X POST https://auth.interactor.com/api/v1/admin/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "developer@yourcompany.com",
@@ -45,21 +45,21 @@ curl -X POST https://auth.interactor.com/api/v1/auth/login \
 ```
 
 ```bash
-# Create OAuth client
-curl -X POST https://auth.interactor.com/api/v1/account/oauth-clients \
-  -H "Authorization: Bearer <user_access_token>" \
+# Create an application (OAuth client) in your organization
+curl -X POST https://auth.interactor.com/api/v1/admin/orgs/your-company/applications \
+  -H "Authorization: Bearer <admin_access_token>" \
   -H "Content-Type: application/json" \
-  -d '{"name": "My Production Backend"}'
+  -d '{"name": "My Production Backend", "grant_types": ["client_credentials"]}'
 ```
 
 **Response:**
 ```json
 {
-  "data": {
-    "client_id": "client_abc123",
-    "client_secret": "secret_xyz789_SAVE_THIS",
-    "name": "My Production Backend"
-  }
+  "client_id": "app_abc123",
+  "client_secret": "secret_xyz789_SAVE_THIS",
+  "name": "My Production Backend",
+  "grant_types": ["client_credentials"],
+  "status": "active"
 }
 ```
 
@@ -72,7 +72,7 @@ curl -X POST https://auth.interactor.com/api/v1/account/oauth-clients \
 Add to your backend's environment:
 
 ```bash
-INTERACTOR_CLIENT_ID=client_abc123
+INTERACTOR_CLIENT_ID=app_abc123
 INTERACTOR_CLIENT_SECRET=secret_xyz789_SAVE_THIS
 ```
 
@@ -83,11 +83,11 @@ INTERACTOR_CLIENT_SECRET=secret_xyz789_SAVE_THIS
 Your backend exchanges credentials for tokens:
 
 ```bash
-curl -X POST https://auth.interactor.com/api/v1/oauth/token \
+curl -X POST https://auth.interactor.com/oauth/token \
   -H "Content-Type: application/json" \
   -d '{
     "grant_type": "client_credentials",
-    "client_id": "client_abc123",
+    "client_id": "app_abc123",
     "client_secret": "secret_xyz789_SAVE_THIS"
   }'
 ```
@@ -95,11 +95,9 @@ curl -X POST https://auth.interactor.com/api/v1/oauth/token \
 **Response:**
 ```json
 {
-  "data": {
-    "access_token": "eyJhbGciOiJSUzI1NiIs...",
-    "token_type": "Bearer",
-    "expires_in": 900
-  }
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 900
 }
 ```
 
@@ -146,7 +144,7 @@ class InteractorClient {
       return this.accessToken;
     }
 
-    const response = await fetch('https://auth.interactor.com/api/v1/oauth/token', {
+    const response = await fetch('https://auth.interactor.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -157,9 +155,9 @@ class InteractorClient {
     });
 
     const data = await response.json();
-    this.accessToken = data.data.access_token;
+    this.accessToken = data.access_token;
     // Refresh 60 seconds before expiry to avoid edge cases
-    this.tokenExpiry = new Date(Date.now() + (data.data.expires_in - 60) * 1000);
+    this.tokenExpiry = new Date(Date.now() + (data.expires_in - 60) * 1000);
     return this.accessToken;
   }
 
@@ -184,18 +182,16 @@ class InteractorClient {
 Rotate your client secret without downtime:
 
 ```bash
-curl -X POST https://auth.interactor.com/api/v1/account/oauth-clients/<client_id>/rotate-secret \
-  -H "Authorization: Bearer <user_access_token>"
+curl -X POST https://auth.interactor.com/api/v1/admin/orgs/your-company/applications/app_abc123/rotate-secret \
+  -H "Authorization: Bearer <admin_access_token>"
 ```
 
 **Response:**
 ```json
 {
-  "data": {
-    "client_id": "client_abc123",
-    "client_secret": "secret_NEW_SECRET_HERE",
-    "previous_secret_expires_at": "2026-01-21T12:00:00Z"
-  }
+  "client_id": "app_abc123",
+  "new_secret": "secret_NEW_SECRET_HERE",
+  "old_secret_valid_until": "2026-01-21T12:00:00Z"
 }
 ```
 
@@ -212,18 +208,18 @@ Both old and new secrets work for **24 hours** during rotation. This gives you t
 
 ## Managing OAuth Clients
 
-### List OAuth Clients
+### List Applications
 
 ```bash
-curl https://auth.interactor.com/api/v1/account/oauth-clients \
-  -H "Authorization: Bearer <user_access_token>"
+curl https://auth.interactor.com/api/v1/admin/orgs/your-company/applications \
+  -H "Authorization: Bearer <admin_access_token>"
 ```
 
-### Delete OAuth Client
+### Delete Application
 
 ```bash
-curl -X DELETE https://auth.interactor.com/api/v1/account/oauth-clients/<client_id> \
-  -H "Authorization: Bearer <user_access_token>"
+curl -X DELETE https://auth.interactor.com/api/v1/admin/orgs/your-company/applications/app_abc123 \
+  -H "Authorization: Bearer <admin_access_token>"
 ```
 
 ---
@@ -702,7 +698,7 @@ function buildOAuthConfigsFromEnv() {
 
 async function syncConfig() {
   // Get access token
-  const tokenRes = await fetch('https://auth.interactor.com/api/v1/oauth/token', {
+  const tokenRes = await fetch('https://auth.interactor.com/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -711,7 +707,7 @@ async function syncConfig() {
       client_secret: process.env.CLIENT_SECRET
     })
   });
-  const { data: { access_token } } = await tokenRes.json();
+  const { access_token } = await tokenRes.json();
 
   // Build sync payload
   const payload = {

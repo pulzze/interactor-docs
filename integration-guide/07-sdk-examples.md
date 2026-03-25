@@ -44,8 +44,8 @@ export class InteractorClient {
       return this.accessToken;
     }
 
-    const response = await axios.post<ApiResponse<TokenResponse>>(
-      'https://auth.interactor.com/api/v1/oauth/token',
+    const response = await axios.post<TokenResponse>(
+      'https://auth.interactor.com/oauth/token',
       {
         grant_type: 'client_credentials',
         client_id: this.clientId,
@@ -53,8 +53,8 @@ export class InteractorClient {
       }
     );
 
-    this.accessToken = response.data.data.access_token;
-    this.tokenExpiry = new Date(Date.now() + (response.data.data.expires_in - 60) * 1000);
+    this.accessToken = response.data.access_token;
+    this.tokenExpiry = new Date(Date.now() + (response.data.expires_in - 60) * 1000);
     return this.accessToken;
   }
 
@@ -137,8 +137,8 @@ export class InteractorClient {
     return this.request<any[]>('GET', `/workflows/instances${params ? '?' + params : ''}`);
   }
 
-  async resumeWorkflow(id: string, input: any) {
-    return this.request<void>('POST', `/workflows/instances/${id}/resume`, { input });
+  async resumeWorkflow(id: string, selectedOption: string) {
+    return this.request<void>('POST', `/workflows/instances/${id}/resume`, { selected_option: selectedOption });
   }
 
   async cancelWorkflow(id: string) {
@@ -190,8 +190,7 @@ export class InteractorClient {
 
   async sendMessage(roomId: string, content: string) {
     return this.request<{ id: string }>('POST', `/agents/rooms/${roomId}/messages`, {
-      content,
-      role: 'user'
+      content
     });
   }
 
@@ -286,9 +285,9 @@ async function runApprovalWorkflow(userId: string, request: any) {
   }
 
   if (status.status === 'halted') {
-    // Show halting_presentation to user, get their input
-    // Then resume:
-    await client.resumeWorkflow(instance.id, { approved: true });
+    // Show halting_presentation to user, get their selection
+    // Then resume with the selected option:
+    await client.resumeWorkflow(instance.id, 'approve');
   }
 }
 
@@ -331,7 +330,7 @@ class InteractorClient:
         self.access_token: Optional[str] = None
         self.token_expiry: Optional[datetime] = None
         self.base_url = 'https://core.interactor.com/api/v1'
-        self.auth_url = 'https://auth.interactor.com/api/v1'
+        self.auth_url = 'https://auth.interactor.com'
 
     def _get_token(self) -> str:
         if self.access_token and self.token_expiry and self.token_expiry > datetime.now():
@@ -346,7 +345,7 @@ class InteractorClient:
             }
         )
         response.raise_for_status()
-        data = response.json()['data']
+        data = response.json()
 
         self.access_token = data['access_token']
         self.token_expiry = datetime.now() + timedelta(seconds=data['expires_in'] - 60)
@@ -431,8 +430,8 @@ class InteractorClient:
         query = '?' + '&'.join(params) if params else ''
         return self._request('GET', f'/workflows/instances{query}')
 
-    def resume_workflow(self, id: str, input_data: Dict) -> None:
-        self._request('POST', f'/workflows/instances/{id}/resume', {'input': input_data})
+    def resume_workflow(self, id: str, selected_option: str) -> None:
+        self._request('POST', f'/workflows/instances/{id}/resume', {'selected_option': selected_option})
 
     def cancel_workflow(self, id: str) -> None:
         self._request('POST', f'/workflows/instances/{id}/cancel')
@@ -500,8 +499,7 @@ class InteractorClient:
 
     def send_message(self, room_id: str, content: str) -> Dict:
         return self._request('POST', f'/agents/rooms/{room_id}/messages', {
-            'content': content,
-            'role': 'user'
+            'content': content
         })
 
     def get_messages(self, room_id: str, limit: Optional[int] = None) -> List[Dict]:
@@ -596,8 +594,8 @@ def run_approval_workflow(user_id: str, request_data: dict):
         print(f"Workflow halted at: {status['current_state']}")
         print(f"Presentation: {status['halting_presentation']}")
 
-        # Resume with user input
-        client.resume_workflow(instance['id'], {'approved': True})
+        # Resume with the selected option
+        client.resume_workflow(instance['id'], 'approve')
 
 # Chat with AI Assistant
 def chat(user_id: str, message: str):
