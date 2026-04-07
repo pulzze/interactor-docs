@@ -318,6 +318,32 @@ curl -X POST https://core.interactor.com/api/v1/agents/rooms/room_xyz/messages \
 
 The assistant's response is generated asynchronously. Use streaming or webhooks to receive it.
 
+**Message Request Parameters:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `content` | string | Yes | The message text |
+| `enabled_tools` | array | No | Tool names to enable for this message (overrides assistant's `default_tools`) |
+| `enabled_data_sources` | array | No | Data source names to enable for this message (overrides assistant's `default_data_sources`) |
+| `external_user_id` | string | No | User identifier for profile resolution (overrides room's `external_user_id`) |
+| `profile_context` | string | No | Context profile ID for profile layering |
+| `metadata` | object | No | Custom metadata to attach to the message |
+
+**Advanced example** — sending a message with specific tools and data sources enabled:
+
+```bash
+curl -X POST https://core.interactor.com/api/v1/agents/rooms/room_xyz/messages \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "What tables are in the marketing database?",
+    "enabled_tools": ["search_knowledge_base", "get_order_status"],
+    "enabled_data_sources": ["marketing_db", "product_api"]
+  }'
+```
+
+When `enabled_tools` or `enabled_data_sources` are provided, they override the assistant's defaults for that message only. If omitted, the assistant's `default_tools` and `default_data_sources` are used.
+
 ### List Messages
 
 ```bash
