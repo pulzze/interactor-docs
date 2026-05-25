@@ -1,7 +1,7 @@
 # Interactor Integration Guide: Overview
 
-**Version:** 2.1.0
-**Last Updated:** 2026-02-05
+**Version:** 2.2.0
+**Last Updated:** 2026-05-24
 
 ---
 
@@ -12,7 +12,7 @@ Interactor is a platform that provides three core capabilities for your applicat
 | Capability | What It Does |
 |------------|--------------|
 | **Credential Management** | Securely store and manage OAuth tokens and API keys for external services |
-| **AI Agents** | LLM-powered assistants that can use tools and access your data |
+| **AI Agents** | LLM-powered assistants that can use tools, query data sources, and invoke external services on behalf of your users via semantic capability search |
 | **Workflows** | Execute state-machine based automation with human-in-the-loop support |
 
 ---
@@ -42,6 +42,20 @@ Interactor is a platform that provides three core capabilities for your applicat
 ```
 
 **Key Point:** Interactor does not manage your end users. Your backend authenticates to Interactor using OAuth client credentials, then calls Interactor APIs on behalf of your users. The `external_user_id` parameter isolates each user's data.
+
+Behind the Interactor API, the platform queries a **Service Knowledge Base** (a vectorized catalog of external services and their capabilities) so AI Agents can discover and invoke the right service for a given user request without you wiring each integration manually.
+
+### Deployment Modes
+
+Interactor supports three deployment configurations. The base URLs and auth requirements below assume the default **Hosted Multi-Tenant** mode:
+
+| Mode | Who hosts | Auth model |
+|------|-----------|------------|
+| **Hosted Multi-Tenant** | Interactor | Account Server JWT (client credentials) |
+| **Customer Single-Tenant** | You / your infrastructure | Optional — can run with auth disabled |
+| **Hybrid (Delegated Credentials)** | Interactor hosts core, you host credentials | Account Server JWT + delegated credential store |
+
+If you're unsure which mode you're on, call the `/info` endpoint (see [Health Check](#health-check)) — the response includes `authentication_enabled`, which tells you whether the deployment expects JWT auth.
 
 ---
 
@@ -106,7 +120,7 @@ Most API calls accept an `external_user_id` parameter to scope data to a specifi
 │  Your Backend   │       │  Account Server  │       │   Interactor    │
 └────────┬────────┘       └────────┬─────────┘       └────────┬────────┘
          │                         │                          │
-         │ POST /oauth/token       │                          │
+         │ POST /api/v1/oauth/token│                          │
          │ client_id + secret      │                          │
          │────────────────────────>│                          │
          │                         │                          │
@@ -140,6 +154,26 @@ curl https://core.interactor.com/health
   "timestamp": "2026-01-20T12:00:00Z"
 }
 ```
+
+### Service Info
+
+To discover the deployment's configuration (including whether authentication is required and what OAuth callback URL to register with external providers), call `/info`:
+
+```bash
+curl https://core.interactor.com/info
+```
+
+**Response:**
+```json
+{
+  "service": "interactor",
+  "version": "0.1.0",
+  "authentication_enabled": true,
+  "oauth_callback_url": "https://core.interactor.com/callback"
+}
+```
+
+Solution apps should use `/info` rather than hardcoding deployment-specific assumptions.
 
 ---
 

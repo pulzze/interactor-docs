@@ -1,6 +1,6 @@
 # Setup and Authentication
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-05-24
 
 This guide covers account registration, OAuth client setup, and token management.
 
@@ -16,13 +16,14 @@ curl -X POST https://auth.interactor.com/api/v1/admin/register \
   -d '{
     "email": "developer@yourcompany.com",
     "password": "SecureP@ssw0rd!",
-    "organization_name": "Your Company Inc"
+    "org_name": "your-company"
   }'
 ```
 
+The `org_name` is a slug-style identifier (lowercase, hyphens) used throughout the API path structure.
+
 **Password Requirements:**
-- Minimum 12 characters
-- At least one uppercase, lowercase, number, and special character
+- Minimum 8 characters
 
 Check your email and click the verification link.
 
@@ -49,7 +50,11 @@ curl -X POST https://auth.interactor.com/api/v1/admin/login \
 curl -X POST https://auth.interactor.com/api/v1/admin/orgs/your-company/applications \
   -H "Authorization: Bearer <admin_access_token>" \
   -H "Content-Type: application/json" \
-  -d '{"name": "My Production Backend", "grant_types": ["client_credentials"]}'
+  -d '{
+    "name": "My Production Backend",
+    "description": "Main production server",
+    "scopes": ["interactor:read", "interactor:write"]
+  }'
 ```
 
 **Response:**
@@ -58,8 +63,10 @@ curl -X POST https://auth.interactor.com/api/v1/admin/orgs/your-company/applicat
   "client_id": "app_abc123",
   "client_secret": "secret_xyz789_SAVE_THIS",
   "name": "My Production Backend",
-  "grant_types": ["client_credentials"],
-  "status": "active"
+  "description": "Main production server",
+  "scopes": ["interactor:read", "interactor:write"],
+  "status": "active",
+  "created_at": "2026-01-22T00:00:00Z"
 }
 ```
 
@@ -83,7 +90,7 @@ INTERACTOR_CLIENT_SECRET=secret_xyz789_SAVE_THIS
 Your backend exchanges credentials for tokens:
 
 ```bash
-curl -X POST https://auth.interactor.com/oauth/token \
+curl -X POST https://auth.interactor.com/api/v1/oauth/token \
   -H "Content-Type: application/json" \
   -d '{
     "grant_type": "client_credentials",
@@ -97,7 +104,8 @@ curl -X POST https://auth.interactor.com/oauth/token \
 {
   "access_token": "eyJhbGciOiJSUzI1NiIs...",
   "token_type": "Bearer",
-  "expires_in": 900
+  "expires_in": 900,
+  "scope": "interactor:read interactor:write"
 }
 ```
 
@@ -123,7 +131,7 @@ The Account Server issues different token types based on how you authenticate:
 | **App Token** | Client credentials grant | Backend server-to-server calls |
 | **User Token** | OAuth flow via Account Server | User-facing applications |
 
-For most integrations, you'll use **App Tokens** obtained via client credentials. These tokens include your `org_id` for multi-tenant resource isolation. User tokens are not required for any Interactor API operations.
+For most integrations, you'll use **App Tokens** obtained via client credentials. These tokens include your `org` claim (your org slug, e.g., `"acme-corp"`) for multi-tenant resource isolation. The patterns in this guide rely on App Tokens; User Tokens are only needed when end-users authenticate directly with your application.
 
 ---
 
@@ -144,7 +152,7 @@ class InteractorClient {
       return this.accessToken;
     }
 
-    const response = await fetch('https://auth.interactor.com/oauth/token', {
+    const response = await fetch('https://auth.interactor.com/api/v1/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -189,13 +197,12 @@ curl -X POST https://auth.interactor.com/api/v1/admin/orgs/your-company/applicat
 **Response:**
 ```json
 {
-  "client_id": "app_abc123",
-  "new_secret": "secret_NEW_SECRET_HERE",
-  "old_secret_valid_until": "2026-01-21T12:00:00Z"
+  "client_secret": "sec_NEW_SECRET_shown_once",
+  "previous_secret_expires_at": "2026-01-23T00:00:00Z"
 }
 ```
 
-Both old and new secrets work for **24 hours** during rotation. This gives you time to update your deployment without service interruption.
+Both old and new secrets work for **24 hours** during rotation (the exact expiry is returned in `previous_secret_expires_at`). This gives you time to update your deployment without service interruption.
 
 ### Rotation Best Practices
 
@@ -698,7 +705,7 @@ function buildOAuthConfigsFromEnv() {
 
 async function syncConfig() {
   // Get access token
-  const tokenRes = await fetch('https://auth.interactor.com/oauth/token', {
+  const tokenRes = await fetch('https://auth.interactor.com/api/v1/oauth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

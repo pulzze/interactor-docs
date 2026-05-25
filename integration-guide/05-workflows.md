@@ -1,6 +1,6 @@
 # Workflows
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-05-24
 
 Workflows are state-machine based automations with human-in-the-loop support. Use them to model multi-step business processes that may require approvals, user input, or external integrations.
 
@@ -96,7 +96,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows \
         "logic": [
           {"type": "set", "values": {"data.request_id": "{{ input.id }}", "data.status": "pending"}}
         ],
-        "transitions": [{"target": "await_approval"}]
+        "transitions": [{"to": "await_approval"}]
       },
       "await_approval": {
         "type": "halting",
@@ -108,8 +108,8 @@ curl -X POST https://core.interactor.com/api/v1/workflows \
           ]
         },
         "transitions": [
-          {"target": "approved", "condition": "data.approved"},
-          {"target": "rejected"}
+          {"to": "approved", "condition": "data.approved"},
+          {"to": "rejected"}
         ]
       },
       "approved": {
@@ -157,7 +157,7 @@ curl -X POST https://core.interactor.com/api/v1/workflows/validate \
       "start": {
         "type": "action",
         "logic": [{"type": "set", "values": {"data.message": "Hello"}}],
-        "transitions": [{"target": "end"}]
+        "transitions": [{"to": "end"}]
       },
       "end": {
         "type": "terminal"
@@ -673,11 +673,11 @@ Conditions use JSONata expressions to control state transitions. You can referen
 {
   "transitions": [
     {
-      "target": "high_value_approval",
+      "to": "high_value_approval",
       "condition": "input.amount > 10000"
     },
     {
-      "target": "auto_approve",
+      "to": "auto_approve",
       "condition": "input.amount <= 10000"
     }
   ]
@@ -782,8 +782,8 @@ See [JSONata documentation](https://jsonata.org) for the full expression languag
         {"type": "set", "values": {"data.submitted_at": "{{ $now() }}"}}
       ],
       "transitions": [
-        {"target": "manager_approval", "condition": "input.amount > 1000"},
-        {"target": "approved"}
+        {"to": "manager_approval", "condition": "input.amount > 1000"},
+        {"to": "approved"}
       ]
     },
     "manager_approval": {
@@ -796,9 +796,9 @@ See [JSONata documentation](https://jsonata.org) for the full expression languag
         ]
       },
       "transitions": [
-        {"target": "vp_approval", "condition": "data.approved and input.amount > 10000"},
-        {"target": "approved", "condition": "data.approved"},
-        {"target": "rejected"}
+        {"to": "vp_approval", "condition": "data.approved and input.amount > 10000"},
+        {"to": "approved", "condition": "data.approved"},
+        {"to": "rejected"}
       ]
     },
     "vp_approval": {
@@ -811,8 +811,8 @@ See [JSONata documentation](https://jsonata.org) for the full expression languag
         ]
       },
       "transitions": [
-        {"target": "approved", "condition": "data.approved"},
-        {"target": "rejected"}
+        {"to": "approved", "condition": "data.approved"},
+        {"to": "rejected"}
       ]
     },
     "approved": {
