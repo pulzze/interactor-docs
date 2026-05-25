@@ -1,6 +1,6 @@
 # SDK Examples
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-05-24
 
 Complete code examples for integrating with Interactor in TypeScript/Node.js and Python.
 
@@ -45,7 +45,7 @@ export class InteractorClient {
     }
 
     const response = await axios.post<TokenResponse>(
-      'https://auth.interactor.com/oauth/token',
+      'https://auth.interactor.com/api/v1/oauth/token',
       {
         grant_type: 'client_credentials',
         client_id: this.clientId,
@@ -87,11 +87,11 @@ export class InteractorClient {
     );
   }
 
-  async initiateOAuth(serviceId: string, externalUserId: string, redirectUri: string, scopes?: string[]) {
+  async initiateOAuth(serviceId: string, externalUserId: string, successRedirectUrl: string, scopes?: string[]) {
     return this.request<{ flow_id: string; authorization_url: string }>(
       'POST',
       '/oauth/initiate',
-      { service_id: serviceId, external_user_id: externalUserId, redirect_uri: redirectUri, scopes }
+      { service_id: serviceId, external_user_id: externalUserId, success_redirect_url: successRedirectUrl, scopes }
     );
   }
 
@@ -226,11 +226,11 @@ export class InteractorClient {
 
   // ============ Webhooks ============
 
-  async createWebhook(url: string, eventTypes: string[]) {
+  async createWebhook(name: string, url: string, eventTypes: string[]) {
     return this.request<{ id: string; secret: string }>(
       'POST',
       '/webhooks',
-      { url, event_types: eventTypes, enabled: true }
+      { name, url, event_types: eventTypes, enabled: true }
     );
   }
 
@@ -262,11 +262,11 @@ async function connectGoogleCalendar(userId: string) {
   );
 
   // Redirect user to oauth.authorization_url
-  // After callback, check status:
-  const status = await client.getOAuthStatus(oauth.flow_id);
-  if (status.status === 'completed') {
-    console.log('Credential created:', status.credential_id);
-  }
+  // After the user authorizes, they land on `success_redirect_url` with
+  // `credential_id` and `service_id` query params. You can also subscribe
+  // to the `credential.ready` webhook to detect completion server-side.
+  // Polling /oauth/status returns 404 once the flow completes.
+  console.log('Authorize at:', oauth.authorization_url);
 }
 
 // Workflow Example
@@ -337,7 +337,7 @@ class InteractorClient:
             return self.access_token
 
         response = requests.post(
-            f'{self.auth_url}/oauth/token',
+            f'{self.auth_url}/api/v1/oauth/token',
             json={
                 'grant_type': 'client_credentials',
                 'client_id': self.client_id,
@@ -378,13 +378,13 @@ class InteractorClient:
         self,
         service_id: str,
         external_user_id: str,
-        redirect_uri: str,
+        success_redirect_url: str,
         scopes: Optional[List[str]] = None
     ) -> Dict:
         return self._request('POST', '/oauth/initiate', {
             'service_id': service_id,
             'external_user_id': external_user_id,
-            'redirect_uri': redirect_uri,
+            'success_redirect_url': success_redirect_url,
             'scopes': scopes
         })
 
@@ -535,8 +535,9 @@ class InteractorClient:
 
     # ============ Webhooks ============
 
-    def create_webhook(self, url: str, event_types: List[str]) -> Dict:
+    def create_webhook(self, name: str, url: str, event_types: List[str]) -> Dict:
         return self._request('POST', '/webhooks', {
+            'name': name,
             'url': url,
             'event_types': event_types,
             'enabled': True
@@ -571,10 +572,10 @@ def connect_google_calendar(user_id: str):
 
     print(f"Redirect user to: {oauth['authorization_url']}")
 
-    # After callback, check status:
-    status = client.get_oauth_status(oauth['flow_id'])
-    if status['status'] == 'completed':
-        print(f"Credential created: {status['credential_id']}")
+    # After authorization, the user lands on `success_redirect_url` with
+    # `credential_id` and `service_id` query params. Subscribe to the
+    # `credential.ready` webhook to detect completion server-side; polling
+    # /oauth/status returns 404 once the flow completes.
 
 # Workflow Example
 def run_approval_workflow(user_id: str, request_data: dict):

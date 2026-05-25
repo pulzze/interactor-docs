@@ -1,6 +1,6 @@
 # Credential Management
 
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-05-24
 
 Credential Management is Interactor's primary feature for securely storing and managing OAuth tokens and API keys for external services (Google, Slack, Salesforce, etc.).
 
@@ -286,8 +286,7 @@ curl -X POST https://core.interactor.com/api/v1/oauth-client-configs \
   -d '{
     "auth_provider": "google",
     "client_id": "your-google-client-id.apps.googleusercontent.com",
-    "client_secret": "your-google-client-secret",
-    "enabled": true
+    "client_secret": "your-google-client-secret"
   }'
 ```
 
@@ -334,21 +333,19 @@ curl -X DELETE https://core.interactor.com/api/v1/oauth-client-configs/config_12
                            │ OAuth completes     │ OAuth fails
                            ▼                     ▼
                     ┌─────────────┐        ┌─────────────┐
-           ┌───────>│   active    │        │   failed    │
-           │        └──────┬──────┘        └─────────────┘
-           │               │
-   refresh │    token      │    user
-  succeeds │   expires     │   revokes
-           │               │
-           │        ┌──────┴──────┐
-           └────────│   expired   │
-                    └──────┬──────┘
-                           │ refresh fails
-                           ▼
-                    ┌─────────────┐
-                    │   revoked   │
-                    └─────────────┘
+           ┌───────>│   active    │────┐   │   failed    │
+           │        └──────┬──────┘    │   └─────────────┘
+           │               │           │
+   refresh │    token      │    user revokes
+  succeeds │   expires or  │           │
+           │ refresh fails │           ▼
+           │               │    ┌─────────────┐
+           │        ┌──────┴──┐ │   revoked   │
+           └────────│ expired │ └─────────────┘
+                    └─────────┘    (re-auth to recover)
 ```
+
+Both `expired` and `revoked` are recoverable by re-initiating the OAuth flow, which creates a new `active` credential.
 
 **Status values:**
 
@@ -379,10 +376,10 @@ Subscribe to credential events via webhooks:
 
 | Event | Description |
 |-------|-------------|
-| `credential.created` | New credential created |
-| `credential.refreshed` | Token successfully refreshed |
-| `credential.expired` | Token expired (refresh failed) |
+| `credential.ready` | New credential is active and ready to use (fired after OAuth completes) |
+| `credential.expired` | Token has expired |
 | `credential.revoked` | User revoked access |
+| `credential.refresh_failed` | Automatic token refresh failed (re-authorization required) |
 
 See [Webhooks and Streaming](06-webhooks-and-streaming.md) for setup details.
 

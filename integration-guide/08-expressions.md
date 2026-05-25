@@ -1,7 +1,7 @@
 # Expressions
 
 **Version:** 1.0.0
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-05-24
 
 ---
 
@@ -301,9 +301,13 @@ curl -X POST https://core.interactor.com/api/v1/expressions/evaluate \
 ```json
 {
   "result": 38.5,
-  "execution_time_ms": 2
+  "execution_time_ms": 2,
+  "cached": false,
+  "no_match": false
 }
 ```
+
+The `no_match` field is `true` when the expression resolved to `undefined` (e.g., accessing a missing field). The service normalizes this to `result: null` in the response.
 
 ### Validate Expression
 
@@ -355,9 +359,8 @@ JSONata expressions are safe by design:
 
 | Limit | Value |
 |-------|-------|
-| Max execution time | 100ms |
+| Max execution time | 100ms (default; configurable per deployment) |
 | Max output size | 1MB |
-| Max recursion depth | 100 |
 
 ---
 
@@ -380,9 +383,9 @@ This means expressions won't fail on missing data, but you may get unexpected `n
 Use these patterns to handle potentially missing data:
 
 ```jsonata
-// Default values with null coalescing
-input.count ?? 0                           // Use 0 if count is null/undefined
-input.name ?? "Unknown"                    // Use default string
+// Default values via existence check (JSONata has no ?? operator)
+$exists(input.count) ? input.count : 0     // Use 0 if count is missing
+$exists(input.name) ? input.name : "Unknown" // Use default string
 
 // Conditional checks
 input.items ? $sum(input.items.price) : 0  // Check before aggregating

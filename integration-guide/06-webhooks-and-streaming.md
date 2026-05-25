@@ -1,6 +1,6 @@
 # Webhooks and Streaming
 
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-05-24
 
 Receive real-time updates from Interactor via webhooks (push) or Server-Sent Events (pull).
 
@@ -212,6 +212,7 @@ curl "https://core.interactor.com/api/v1/webhooks/wh_abc/events?limit=20" \
 | Parameter | Type | Default | Max | Description |
 |-----------|------|---------|-----|-------------|
 | `limit` | integer | 50 | 100 | Number of events to return |
+| `offset` | integer | 0 | — | Pagination offset |
 
 **Response:**
 ```json
@@ -267,7 +268,7 @@ All webhook events follow this structure:
 {
   "id": "evt_abc123",
   "type": "workflow.completed",
-  "timestamp": "2026-01-20T12:00:00Z",
+  "created_at": "2026-01-20T12:00:00Z",
   "data": {
     "instance_id": "inst_xyz",
     "workflow_name": "approval_workflow",
@@ -276,6 +277,8 @@ All webhook events follow this structure:
   }
 }
 ```
+
+The delivery timestamp used for signature verification is in the `X-Interactor-Timestamp` header (Unix seconds), not in the body.
 
 ### Event-Specific Data
 
@@ -485,6 +488,10 @@ curl -N https://core.interactor.com/api/v1/workflows/instances/inst_xyz/stream \
 |-------|-------------|
 | `state` | Initial state when connecting |
 | `state_changed` | Workflow transitioned to a new state |
+| `step_started` | A step within the current state started executing |
+| `step_progress` | Progress update from a long-running step |
+| `step_completed` | A step finished executing |
+| `data_updated` | Workflow `data` was modified |
 | `halted` | Workflow paused awaiting input |
 | `completed` | Workflow finished successfully |
 | `failed` | Workflow encountered an error |
@@ -492,6 +499,7 @@ curl -N https://core.interactor.com/api/v1/workflows/instances/inst_xyz/stream \
 | `forked` | Workflow spawned parallel threads |
 | `thread_completed` | A parallel thread finished |
 | `thread_waiting` | A thread is waiting for others |
+| `agent_handoff` | Control was handed off to an agent |
 | `heartbeat` | Keepalive ping (every 30 seconds) |
 | `done` | Stream is ending |
 
@@ -528,12 +536,14 @@ curl -N https://core.interactor.com/api/v1/agents/rooms/room_xyz/stream \
 | Event | Description |
 |-------|-------------|
 | `connected` | Initial connection established |
+| `room.state` | Room snapshot (streaming status, queued messages) sent after `connected` |
 | `agent.message_received` | A message was received in the room |
-| `agent.response_sent` | Agent sent a response |
+| `agent.response_sent` | Agent sent a response. May include `"replay": true` when re-emitted to a reconnecting client |
 | `agent.status` | Status update (e.g., "thinking", "searching") |
 | `agent.action_executed` | Agent executed a tool/action |
 | `agent.error` | An error occurred |
 | `agent.loop_detected` | Agent detected a potential loop |
+| `workflow.*` | When a room is bound to a workflow, workflow SSE events are forwarded with the `workflow.` prefix |
 | `ping` | Keepalive ping (every 30 seconds) |
 | `done` | Stream is ending (room closed) |
 
@@ -686,13 +696,15 @@ eventSource.onerror = (error) => {
 
 Interactor retries failed webhook deliveries with exponential backoff:
 
-| Attempt | Delay |
-|---------|-------|
+| Attempt | Delay before this attempt |
+|---------|---------------------------|
 | 1 | Immediate |
 | 2 | 1 second |
 | 3 | 2 seconds |
+| 4 | 4 seconds |
+| 5 | 8 seconds |
 
-Maximum 3 attempts. After all attempts fail, the event status is set to `failed`.
+Maximum **5 attempts**. The backoff doubles with each retry (1s, 2s, 4s, 8s, 16s) and is capped at 60 seconds. After all attempts fail, the event status is set to `failed`.
 
 You can monitor failed deliveries via the [View Recent Events](#view-recent-events) endpoint and manually retry by creating a test event or re-triggering the original action.
 

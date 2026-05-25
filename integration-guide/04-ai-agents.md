@@ -1,6 +1,6 @@
 # AI Agents
 
-**Last Updated:** 2026-02-04
+**Last Updated:** 2026-05-24
 
 AI Agents are LLM-powered assistants that can have conversations, use tools, and access your data sources to help your users accomplish tasks.
 
@@ -1454,10 +1454,13 @@ Subscribe to agent events:
 
 | Event | Description |
 |-------|-------------|
-| `agent.room.message` | New message in a room |
-| `agent.room.closed` | Room was closed |
+| `agent.room_created` | A new room was created |
+| `agent.message_received` | A user message was received in a room |
+| `agent.response_sent` | The assistant sent a response |
+| `agent.action_executed` | The assistant invoked a tool / executed an action |
+| `agent.error` | An error occurred during agent processing |
 
-See [Webhooks and Streaming](06-webhooks-and-streaming.md) for details.
+See [Webhooks and Streaming](06-webhooks-and-streaming.md) for details on payload shapes and signature verification.
 
 ---
 
