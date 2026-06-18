@@ -1,5 +1,7 @@
 # AI Agents
 
+_Last verified: 2026-06-18_
+
 **Last Updated:** 2026-05-24
 
 AI Agents are LLM-powered assistants that can have conversations, use tools, and access your data sources to help your users accomplish tasks.

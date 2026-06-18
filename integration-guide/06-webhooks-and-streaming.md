@@ -1,5 +1,7 @@
 # Webhooks and Streaming
 
+_Last verified: 2026-06-18_
+
 **Last Updated:** 2026-05-24
 
 Receive real-time updates from Interactor via webhooks (push) or Server-Sent Events (pull).

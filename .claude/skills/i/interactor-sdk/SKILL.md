@@ -6,6 +6,8 @@ author: Interactor Integration Guide
 
 # Interactor SDK Examples Skill
 
+_Last verified: 2026-06-18_
+
 Production-ready SDK implementations for TypeScript/Node.js and Python with complete client classes, webhook handlers, and real-time streaming components.
 
 ## When to Use

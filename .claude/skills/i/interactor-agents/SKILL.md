@@ -6,6 +6,8 @@ author: Interactor Integration Guide
 
 # Interactor AI Agents Skill
 
+_Last verified: 2026-06-18_
+
 Build LLM-powered assistants that can have conversations, use tools, and access your data sources.
 
 ## When to Use

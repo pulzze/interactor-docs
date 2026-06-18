@@ -1,5 +1,7 @@
 # Building AI Agents on Interactor
 
+_Last verified: 2026-06-18_
+
 **Version:** 3.0.0
 **Last Updated:** 2026-05-25
 

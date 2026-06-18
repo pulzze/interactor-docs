@@ -6,6 +6,8 @@ author: Interactor Integration Guide
 
 # Interactor Webhooks and Streaming Skill
 
+_Last verified: 2026-06-18_
+
 Receive real-time updates from Interactor via webhooks (push to your server) or Server-Sent Events (pull from browser/client).
 
 ## When to Use

@@ -1,5 +1,7 @@
 # Setup and Authentication
 
+_Last verified: 2026-06-18_
+
 **Last Updated:** 2026-05-24
 
 This guide covers account registration, OAuth client setup, and token management.

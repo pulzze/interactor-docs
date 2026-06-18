@@ -6,6 +6,8 @@ author: Interactor Integration Guide
 
 # Interactor Workflows Skill
 
+_Last verified: 2026-06-18_
+
 Build state-machine based automations with human-in-the-loop support for multi-step business processes.
 
 ## When to Use

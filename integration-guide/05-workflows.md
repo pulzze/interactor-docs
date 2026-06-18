@@ -1,5 +1,7 @@
 # Workflows
 
+_Last verified: 2026-06-18_
+
 **Last Updated:** 2026-05-24
 
 Workflows are state-machine based automations with human-in-the-loop support. Use them to model multi-step business processes that may require approvals, user input, or external integrations.

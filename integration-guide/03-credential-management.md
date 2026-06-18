@@ -1,5 +1,7 @@
 # Credential Management
 
+_Last verified: 2026-06-18_
+
 **Last Updated:** 2026-05-24
 
 Credential Management is Interactor's primary feature for securely storing and managing OAuth tokens and API keys for external services (Google, Slack, Salesforce, etc.).

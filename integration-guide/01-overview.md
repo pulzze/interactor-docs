@@ -1,5 +1,7 @@
 # Interactor Integration Guide: Overview
 
+_Last verified: 2026-06-18_
+
 **Version:** 2.2.0
 **Last Updated:** 2026-05-24
 
