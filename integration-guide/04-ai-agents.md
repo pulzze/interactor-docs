@@ -266,8 +266,24 @@ curl -X POST https://core.interactor.com/api/v1/agents/rooms/room_xyz/messages \
 | `content` | Yes | Message text |
 | `external_user_id` | No | User identifier for context |
 | `profile_context` | No | Per-message profile context |
-| `enabled_tools` | No | Override available tools for this turn |
+| `enabled_tools` | No | **Strict allowlist** — see note below |
 | `enabled_data_sources` | No | Override available data sources for this turn |
+
+> **`enabled_tools` is a strict allowlist, including builtins.** When
+> the field is omitted, every registered tool (custom + builtin) is
+> available. When it's provided, ONLY tools whose names appear in the
+> list are exposed to the assistant for that turn. To keep builtins
+> like `get_current_time`, `find_capability`, or `update_state`
+> available while narrowing your custom-tool surface, include their
+> names explicitly:
+>
+> ```json
+> "enabled_tools": [
+>   "your_custom_tool",
+>   "get_current_time",
+>   "find_capability"
+> ]
+> ```
 | `metadata` | No | Arbitrary metadata (default: `{}`) |
 
 **Response:**
